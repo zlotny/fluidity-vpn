@@ -56,6 +56,13 @@ fn main() -> glib::ExitCode {
     });
     gtk_app.connect_open(|_, files, _| {
         let Some(app) = app() else { return };
+        let (urls, files): (Vec<_>, Vec<_>) = files.iter().partition(|f| f.has_uri_scheme("fluidity"));
+        for url in &urls {
+            app.handle_url(&url.uri());
+        }
+        if files.is_empty() {
+            return;
+        }
         let paths: Vec<_> = files.iter().filter_map(|f| f.path()).collect();
         let id = app.import_paths(&paths);
         app.show();

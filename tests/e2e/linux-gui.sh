@@ -50,7 +50,7 @@ wait_for() {
   return 1
 }
 
-dbus-run-session -- sh -c 'fluidity-gtk > /tmp/gui.log 2>&1' &
+dbus-run-session -- sh -c 'echo "$DBUS_SESSION_BUS_ADDRESS" > /tmp/bus; exec fluidity-gtk > /tmp/gui.log 2>&1' &
 check "window opens" "wait_for 'xdotool search --name \"^Fluidity\$\" >/dev/null'"
 win=$(xdotool search --name '^Fluidity$' | head -n 1)
 xdotool windowactivate --sync "$win" 2>/dev/null || true
@@ -83,6 +83,12 @@ sleep 1
 key ctrl+Return
 check "disconnects from the GUI" "wait_for '! fluidity status | grep -q Connected'"
 shot disconnected 2
+
+export DBUS_SESSION_BUS_ADDRESS="$(cat /tmp/bus)"
+fluidity-gtk 'fluidity://connect/Lab' >/dev/null 2>&1
+check "link connects by name" "wait_for 'fluidity status | grep -qE \"Lab: (Connecting|Authenticating)\"'"
+fluidity-gtk 'fluidity://disconnect' >/dev/null 2>&1
+check "link disconnects all" "wait_for '! fluidity status | grep -q Lab'"
 
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ] || { grep -B2 -A12 -m1 panicked /tmp/gui.log || tail -n 30 /tmp/gui.log; tail -n 20 /tmp/fluidityd.log; exit 1; }

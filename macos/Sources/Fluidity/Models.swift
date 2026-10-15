@@ -285,6 +285,8 @@ struct Preferences: Codable, Equatable {
     var autoConnect: String?
     var trustedNetworks: [String] = []
     var disconnectOnTrusted = true
+    var lastConnection: String?
+    var toggleShortcut: String?
     var openvpnVersion: String?
 }
 

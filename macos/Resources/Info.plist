@@ -40,6 +40,17 @@
   <string>Fluidity reads the name of your Wi-Fi network to connect automatically on networks you do not trust.</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>Fluidity runs your connection scripts with AppleScript.</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>org.fluidityvpn.Fluidity</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>fluidity</string>
+      </array>
+    </dict>
+  </array>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>

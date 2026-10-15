@@ -117,6 +117,9 @@ final class ConnectionManager: ObservableObject {
             for s in list { previousStates[s.id] = s.state }
         }
         blocked = (try? await daemon.blocked()) ?? []
+        let ready = readyActions
+        readyActions = []
+        for action in ready { action(self) }
         if !didLaunchConnect {
             didLaunchConnect = true
             for c in orderedConnections where c.connectOnLaunch && sessions[c.id] == nil {
@@ -127,6 +130,11 @@ final class ConnectionManager: ObservableObject {
     }
 
     private var didLaunchConnect = false
+    private var readyActions: [(ConnectionManager) -> Void] = []
+
+    func whenReady(_ action: @escaping (ConnectionManager) -> Void) {
+        if daemonAvailable && didLaunchConnect { action(self) } else { readyActions.append(action) }
+    }
 
     func state(of id: String) -> SessionState {
         sessions[id]?.state ?? .disconnected
@@ -144,6 +152,7 @@ final class ConnectionManager: ObservableObject {
         guard let connection = connections[id] else { return }
         autoConnected.remove(id)
         userInitiatedDisconnect.remove(id)
+        rememberLastUsed(id)
         Task { await performConnect(connection) }
     }
 

@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use adw::prelude::*;
-use fluidity_core::{CredentialStore, Credentials, Node, Preferences, Store, WifiAction, wire_bundle};
+use fluidity_core::{CredentialStore, Credentials, Node, Preferences, Store, UrlAction, WifiAction, wire_bundle};
 use fluidity_ipc::{ConnectOptions, Event, LogEntry, Prompt, Reply, SessionInfo, SessionState};
 use gtk::{gio, glib};
 
@@ -253,6 +253,13 @@ impl App {
                 }
                 self.refresh_sessions();
             }
+            Message::Sessions(list) if !self.pending_urls.borrow().is_empty() => {
+                self.handle(Message::Sessions(list));
+                let urls = std::mem::take(&mut *self.pending_urls.borrow_mut());
+                for url in urls {
+                    self.handle_url(&url);
+                }
+            }
             Message::Sessions(list) => {
                 {
                     let mut previous = self.previous.borrow_mut();
@@ -455,6 +462,66 @@ impl App {
         }
     }
 
+    pub fn handle_url(self: &Rc<Self>, url: &str) {
+        let Some(action) = fluidity_core::parse_url(url) else {
+            return;
+        };
+        if !self.daemon.get() {
+            self.pending_urls.borrow_mut().push(url.to_string());
+            return;
+        }
+        let name = match &action {
+            UrlAction::Connect(n) | UrlAction::Disconnect(n) | UrlAction::Toggle(n) => n.clone(),
+        };
+        let target = match name {
+            Some(name) => match self.find_connection(&name) {
+                Some(c) => Some(c.id),
+                None => {
+                    self.error(&format!("No connection is named “{name}”."));
+                    return;
+                }
+            },
+            None => None,
+        };
+        match (action, target) {
+            (UrlAction::Connect(_), Some(id)) if !self.is_active(&id) => self.connect(&id),
+            (UrlAction::Connect(_), None) => {
+                if let Some(id) = self.last_used().filter(|id| !self.is_active(id)) {
+                    self.connect(&id);
+                }
+            }
+            (UrlAction::Disconnect(_), Some(id)) => self.disconnect(&id),
+            (UrlAction::Disconnect(_), None) => self.disconnect_all(),
+            (UrlAction::Toggle(_), Some(id)) => self.toggle(&id),
+            (UrlAction::Toggle(_), None) => self.toggle_last_used(),
+            _ => {}
+        }
+    }
+
+    fn find_connection(&self, name: &str) -> Option<ConnInfo> {
+        let all = self.connections.borrow();
+        all.iter()
+            .find(|c| c.id == name)
+            .or_else(|| all.iter().find(|c| c.name == name))
+            .or_else(|| all.iter().find(|c| c.name.to_lowercase() == name.to_lowercase()))
+            .cloned()
+    }
+
+    fn last_used(&self) -> Option<String> {
+        let last = self.prefs.borrow().last_connection.clone();
+        last.and_then(|id| self.connection(&id))
+            .or_else(|| self.connections.borrow().first().cloned())
+            .map(|c| c.id)
+    }
+
+    pub fn toggle_last_used(self: &Rc<Self>) {
+        if !self.active_ids().is_empty() {
+            self.disconnect_all();
+        } else if let Some(id) = self.last_used() {
+            self.connect(&id);
+        }
+    }
+
     pub fn toggle(self: &Rc<Self>, id: &str) {
         if self.is_active(id) {
             self.disconnect(id);
@@ -471,6 +538,10 @@ impl App {
         }
         self.user_disconnect.borrow_mut().remove(id);
         self.auto_connected.borrow_mut().remove(id);
+        if self.prefs.borrow().last_connection.as_deref() != Some(id) {
+            self.prefs.borrow_mut().last_connection = Some(id.to_string());
+            let _ = self.prefs.borrow().save(self.store.root());
+        }
         let app = self.clone();
         glib::spawn_future_local(async move {
             if let Some(script) = connection.before_connect_script.clone() {

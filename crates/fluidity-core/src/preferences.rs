@@ -52,6 +52,8 @@ pub struct Preferences {
     pub auto_connect: Option<String>,
     pub trusted_networks: Vec<String>,
     pub disconnect_on_trusted: bool,
+    pub last_connection: Option<String>,
+    pub toggle_shortcut: Option<String>,
     pub openvpn_version: Option<String>,
 }
 
@@ -100,6 +102,8 @@ impl Default for Preferences {
             auto_connect: None,
             trusted_networks: Vec::new(),
             disconnect_on_trusted: true,
+            last_connection: None,
+            toggle_shortcut: None,
             openvpn_version: None,
         }
     }

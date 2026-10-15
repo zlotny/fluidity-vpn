@@ -43,6 +43,12 @@
             <Verb Id="open" Command="Open" Argument="&quot;%1&quot;" />
           </Extension>
         </ProgId>
+        <RegistryKey Root="HKLM" Key="Software\Classes\fluidity">
+          <RegistryValue Type="string" Value="URL:Fluidity" />
+          <RegistryValue Name="URL Protocol" Type="string" Value="" />
+          <RegistryValue Key="DefaultIcon" Type="string" Value="[#FluidityExe],0" />
+          <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[#FluidityExe]&quot; &quot;%1&quot;" />
+        </RegistryKey>
       </Component>
     </ComponentGroup>
 

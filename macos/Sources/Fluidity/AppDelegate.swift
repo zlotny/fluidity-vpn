@@ -56,6 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             self.offerHelperInstall()
         }
         LoginItem.sync(manager.preferences.startAtLogin)
+        HotKey.shared.action = { [weak self] in self?.manager.toggleLastUsed() }
+        HotKey.shared.register(manager.preferences.toggleShortcut)
         Updater.shared.scheduleChecks()
         Snapshots.start()
     }
@@ -66,6 +68,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        let actions = urls.filter { $0.scheme?.lowercased() == "fluidity" }
+        for url in actions { manager.whenReady { $0.handle(url: url) } }
+        let urls = urls.filter { $0.scheme?.lowercased() != "fluidity" }
+        guard !urls.isEmpty else { return }
         if launched {
             manager.importFiles(urls)
             WindowManager.shared.showPreferences()

@@ -627,6 +627,18 @@ struct GeneralPane: View {
             Section("While connected") {
                 Toggle("Pause Time Machine backups", isOn: pref(\.disableTimeMachine))
             }
+            Section {
+                Picker("Connect or disconnect", selection: shortcutBinding) {
+                    Text("None").tag(String?.none)
+                    ForEach(Shortcut.all) { Text($0.title).tag(String?.some($0.id)) }
+                }
+            } header: {
+                Text("Keyboard shortcut")
+            } footer: {
+                Text("Connects the last used connection, or disconnects all connections. Works in any app.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
             Section("Updates") {
                 Toggle("Check for updates automatically", isOn: pref(\.checkForUpdates))
                 Toggle("Include beta versions", isOn: pref(\.includeBetaUpdates)).disabled(!manager.preferences.checkForUpdates)
@@ -634,6 +646,14 @@ struct GeneralPane: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var shortcutBinding: Binding<String?> {
+        Binding(get: { manager.preferences.toggleShortcut }, set: { value in
+            manager.preferences.toggleShortcut = value
+            manager.savePreferences()
+            HotKey.shared.register(value)
+        })
     }
 
     private var idleBinding: Binding<UInt32> {
