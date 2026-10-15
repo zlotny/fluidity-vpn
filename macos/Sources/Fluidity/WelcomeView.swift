@@ -35,6 +35,9 @@ struct WelcomeView: View {
                 }
             }
             .controlSize(.large)
+            Text("You can also open .ovpn, .fvpn and .fvpnz files with Fluidity.")
+                .font(.callout)
+                .foregroundStyle(.tertiary)
             Spacer()
             HStack {
                 Toggle("Start Fluidity at login", isOn: Binding(get: { manager.preferences.startAtLogin }, set: {
@@ -47,7 +50,7 @@ struct WelcomeView: View {
             }
         }
         .padding(28)
-        .frame(width: 560, height: 420)
+        .frame(width: 560, height: 400)
     }
 }
 

@@ -79,7 +79,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     func showWelcome() {
-        _ = show("welcome", title: "Welcome to Fluidity", size: NSSize(width: 560, height: 420), resizable: false) {
+        _ = show("welcome", title: "Welcome to Fluidity", size: NSSize(width: 560, height: 400), resizable: false) {
             WelcomeView { [weak self] in
                 ConnectionManager.shared.preferences.firstRun = false
                 ConnectionManager.shared.savePreferences()

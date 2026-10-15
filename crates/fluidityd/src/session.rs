@@ -124,6 +124,23 @@ fn log_level(flags: &str) -> &'static str {
     }
 }
 
+fn describe(description: &str) -> String {
+    match description {
+        "SUCCESS" | "SIGUSR1" | "SIGHUP" => "",
+        "ERROR" => "Some options failed",
+        "tls-error" => "TLS error",
+        "socks-error" => "Proxy error",
+        "ping-restart" | "ping-timeout" => "Server not responding",
+        "connection-reset" => "Connection reset",
+        "connection-reset-restart" => "Connection reset",
+        "auth-failure" => "Authentication failed",
+        "server-pushed-connection-reset" => "Server requested a reconnect",
+        "network-change" => "Network changed",
+        other => other,
+    }
+    .to_string()
+}
+
 fn session_state(state: State) -> Option<SessionState> {
     Some(match state {
         State::Connecting | State::Wait | State::Resolve | State::TcpConnect => SessionState::Connecting,
@@ -512,7 +529,7 @@ impl Session {
             MgmtEvent::State(change) => {
                 if let Some(state) = session_state(change.state) {
                     self.info.state = state;
-                    self.info.detail = change.description.clone();
+                    self.info.detail = describe(&change.description);
                     if state == SessionState::Connected {
                         self.info.local_ipv4 = change.local_ip.clone();
                         self.info.local_ipv6 = change.local_ipv6.clone();
