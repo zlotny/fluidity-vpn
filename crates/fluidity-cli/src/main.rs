@@ -1,4 +1,4 @@
-use std::io::{BufRead, Write};
+use std::io::{BufRead, IsTerminal, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -77,6 +77,10 @@ fn fail(message: impl std::fmt::Display) -> ExitCode {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     let cli = Cli::parse();
     match run(cli).await {
         Ok(code) => code,
@@ -338,7 +342,7 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
 }
 
 fn ask(question: &str, secret: bool) -> Result<String, String> {
-    if secret {
+    if secret && std::io::stdin().is_terminal() {
         return rpassword::prompt_password(question).map_err(|e| e.to_string());
     }
     eprint!("{question}");

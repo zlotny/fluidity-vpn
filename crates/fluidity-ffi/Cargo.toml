@@ -1,0 +1,15 @@
+[package]
+name = "fluidity-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+fluidity-config.workspace = true
+fluidity-core.workspace = true
+fluidity-ipc.workspace = true
+serde.workspace = true
+serde_json.workspace = true

@@ -73,6 +73,8 @@ struct Session {
     auth_failed: bool,
     net_applied: bool,
     time_machine_held: bool,
+    holds: usize,
+    release_at: Option<tokio::time::Instant>,
 }
 
 pub fn spawn(daemon: Arc<Daemon>, spec: Spec, owner: u32, commands: mpsc::UnboundedReceiver<Command>) {
@@ -97,6 +99,8 @@ pub fn spawn(daemon: Arc<Daemon>, spec: Spec, owner: u32, commands: mpsc::Unboun
         auth_failed: false,
         net_applied: false,
         time_machine_held: false,
+        holds: 0,
+        release_at: None,
     };
     tokio::spawn(session.run());
 }
@@ -353,6 +357,8 @@ impl Session {
 
     async fn attempt(&mut self) -> Outcome {
         self.auth_failed = false;
+        self.holds = 0;
+        self.release_at = None;
         self.pushed.clear();
         self.set_state(SessionState::Connecting, "Starting").await;
         let dir = self.run_dir();
@@ -392,6 +398,13 @@ impl Session {
         loop {
             let deadline = async {
                 match stop_deadline {
+                    Some(at) => tokio::time::sleep_until(at).await,
+                    None => std::future::pending().await,
+                }
+            };
+            let release_at = self.release_at;
+            let release = async {
+                match release_at {
                     Some(at) => tokio::time::sleep_until(at).await,
                     None => std::future::pending().await,
                 }
@@ -439,6 +452,10 @@ impl Session {
                     let _ = child.kill().await;
                     break;
                 }
+                _ = release, if !stopping => {
+                    self.release_at = None;
+                    let _ = mgmt.hold_release().await;
+                }
             }
         }
 
@@ -471,6 +488,7 @@ impl Session {
                         self.info.remote_port = change.remote_port.clone();
                         self.info.connected_since = Some(change.time.max(1));
                         self.info.last_error = None;
+                        self.holds = 1;
                         if self.pending.take().is_some() {
                             self.daemon.prompt(self.spec.generation, &self.spec.id, None).await;
                         }
@@ -491,7 +509,15 @@ impl Session {
                 self.publish().await;
             }
             MgmtEvent::Hold(_) => {
-                let _ = mgmt.hold_release().await;
+                self.holds += 1;
+                if self.holds <= 1 {
+                    let _ = mgmt.hold_release().await;
+                } else {
+                    let delay = RECONNECT_DELAYS[(self.holds - 2).min(RECONNECT_DELAYS.len() - 1)];
+                    self.release_at = Some(tokio::time::Instant::now() + Duration::from_secs(delay));
+                    self.set_state(SessionState::Reconnecting, &format!("Retrying in {delay}s"))
+                        .await;
+                }
             }
             MgmtEvent::Password(request) => return self.password(request).await,
             MgmtEvent::NeedOk { name, message } => {

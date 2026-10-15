@@ -105,6 +105,7 @@ impl Daemon {
     }
 
     pub async fn log(&self, generation: u64, id: &str, entry: LogEntry) {
+        tracing::debug!(session = id, "{}", entry.message);
         let mut sessions = self.sessions.lock().await;
         if let Some(session) = sessions.get_mut(id).filter(|e| e.generation == generation) {
             if session.log.len() >= LOG_LIMIT {

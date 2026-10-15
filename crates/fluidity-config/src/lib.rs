@@ -1,5 +1,6 @@
 mod bundle;
 mod document;
+pub mod editor;
 mod error;
 mod files;
 mod lexer;
