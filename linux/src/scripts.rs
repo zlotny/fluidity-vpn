@@ -127,6 +127,36 @@ pub fn before_connect(path: &str, connection: &ConnInfo) -> BeforeConnect {
     parse_before_connect(status, &output)
 }
 
+pub fn menu_items(root: &Path) -> Vec<(String, String)> {
+    let dir = root.join("Menu Items");
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return Vec::new();
+    };
+    let mut items: Vec<(String, String)> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "fluiditymenuitem"))
+        .filter_map(|p| {
+            let script = if p.is_dir() {
+                let mut inner: Vec<_> = std::fs::read_dir(&p)
+                    .ok()?
+                    .filter_map(|e| e.ok())
+                    .map(|e| e.path())
+                    .filter(|f| f.file_name().is_some_and(|n| n.to_string_lossy().starts_with("script")))
+                    .collect();
+                inner.sort();
+                inner.into_iter().next()?
+            } else {
+                p.clone()
+            };
+            let title = p.file_stem()?.to_string_lossy().into_owned();
+            Some((title, script.to_string_lossy().into_owned()))
+        })
+        .collect();
+    items.sort();
+    items
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,6 +174,21 @@ mod tests {
         assert!(!parse_before_connect(0, "FluidityNoConnect").allow);
         assert!(!parse_before_connect(1, "").allow);
         assert!(parse_before_connect(1, "FluidityConnect").allow);
+    }
+
+    #[test]
+    fn finds_menu_items() {
+        let dir = std::env::temp_dir().join(format!("fl-items-{}", std::process::id()));
+        let items = dir.join("Menu Items");
+        std::fs::create_dir_all(items.join("B.fluiditymenuitem")).unwrap();
+        std::fs::write(items.join("B.fluiditymenuitem/script.sh"), "true").unwrap();
+        std::fs::write(items.join("A.fluiditymenuitem"), "true").unwrap();
+        std::fs::write(items.join("ignored.txt"), "").unwrap();
+        let found = menu_items(&dir);
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].0, "A");
+        assert!(found[1].1.ends_with("B.fluiditymenuitem/script.sh"));
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

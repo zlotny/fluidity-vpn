@@ -218,6 +218,7 @@ impl App {
             stats,
             daemon: self.daemon.get(),
             icon: prefs.icon_set.clone(),
+            items: crate::scripts::menu_items(self.store.root()),
         };
         self.send(Command::Tray(snapshot));
     }
@@ -277,6 +278,7 @@ impl App {
             TrayAction::Preferences => crate::prefs::open(self),
             TrayAction::Import => self.window().import(),
             TrayAction::Quit => self.gtk.quit(),
+            TrayAction::RunItem(path) => self.run_menu_item(path),
         }
     }
 
@@ -385,6 +387,16 @@ impl App {
             Some(session),
             self.usernames.borrow().get(&connection.id).map(String::as_str),
         );
+        std::thread::spawn(move || scripts::run(&path, &env, std::time::Duration::from_secs(120)));
+    }
+
+    fn run_menu_item(&self, path: String) {
+        let sessions = self.sessions.borrow();
+        let session = sessions.values().find(|s| s.state == SessionState::Connected);
+        let env = match session.and_then(|s| self.connection(&s.id)) {
+            Some(c) => scripts::environment(&c, session, self.usernames.borrow().get(&c.id).map(String::as_str)),
+            None => std::env::vars().collect(),
+        };
         std::thread::spawn(move || scripts::run(&path, &env, std::time::Duration::from_secs(120)));
     }
 

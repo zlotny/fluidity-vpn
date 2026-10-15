@@ -11,6 +11,7 @@ pub enum TrayAction {
     DisconnectAll,
     Show,
     Preferences,
+    RunItem(String),
     Import,
     Quit,
 }
@@ -34,6 +35,7 @@ pub struct TraySnapshot {
     pub stats: Vec<String>,
     pub daemon: bool,
     pub icon: String,
+    pub items: Vec<(String, String)>,
 }
 
 pub struct Tray {
@@ -207,6 +209,13 @@ impl ksni::Tray for Tray {
             menu.push(action("Disconnect All", TrayAction::DisconnectAll));
         }
         menu.push(action("Connect All", TrayAction::ConnectAll));
+        if !self.snapshot.items.is_empty() {
+            menu.push(MenuItem::Separator);
+            for (title, path) in &self.snapshot.items {
+                menu.push(action(&title.replace('_', "__"), TrayAction::RunItem(path.clone())));
+            }
+            menu.push(MenuItem::Separator);
+        }
         menu.push(action("Open Fluidity", TrayAction::Show));
         menu.push(action("Preferences", TrayAction::Preferences));
         menu.push(action("Import Connection…", TrayAction::Import));
