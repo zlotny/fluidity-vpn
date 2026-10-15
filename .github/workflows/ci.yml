@@ -50,13 +50,13 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: C:\gtk-build\gtk
-          key: gvsbuild-${{ env.GVSBUILD }}-gtk4-adwaita-rsvg
+          key: gvsbuild-${{ env.GVSBUILD }}-vs18-gtk4-adwaita-rsvg
       - name: Build GTK
         shell: pwsh
         run: |
           if (-not (Test-Path C:\gtk-build\gtk\x64\release\lib\pkgconfig\libadwaita-1.pc)) {
             pip install "gvsbuild==$env:GVSBUILD"
-            gvsbuild build gtk4 libadwaita librsvg adwaita-icon-theme
+            gvsbuild build --vs-ver 18 gtk4 libadwaita librsvg adwaita-icon-theme
           }
       - name: Install WiX
         shell: pwsh

@@ -27,7 +27,7 @@ fn setup(root: &Path) -> std::path::PathBuf {
     fs::write(root.join("client.crt"), "CERT").unwrap();
     fs::write(root.join("client.key"), "KEY").unwrap();
     fs::write(root.join("scripts/up.scpt"), "SCRIPT").unwrap();
-    let script = root.join("scripts/up.scpt").to_string_lossy().into_owned();
+    let script = root.join("scripts/up.scpt").to_string_lossy().replace('\\', "/");
     let text = OVPN.replace("/scripts/up.scpt", &script);
     let path = root.join("lab.ovpn");
     fs::write(&path, text).unwrap();
@@ -53,10 +53,10 @@ fn imports_ovpn_and_collects_files() {
 fn archive_round_trip() {
     let tmp = tempfile::tempdir().unwrap();
     let bundle = Bundle::import(&setup(tmp.path())).unwrap();
-    let visz = tmp.path().join("Lab.fvpnz");
-    fs::write(&visz, bundle.to_archive("Lab").unwrap()).unwrap();
+    let archive = tmp.path().join("Lab.fvpnz");
+    fs::write(&archive, bundle.to_archive("Lab").unwrap()).unwrap();
 
-    let again = Bundle::import(&visz).unwrap();
+    let again = Bundle::import(&archive).unwrap();
     assert_eq!(again, bundle);
 
     let out = tmp.path().join("out.fvpn");
