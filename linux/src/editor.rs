@@ -253,7 +253,7 @@ impl Editor {
     }
 
     fn file(&self, title: &str, field: fn(&mut EditorModel) -> &mut FileField) -> adw::ActionRow {
-        let row = adw::ActionRow::builder().title(title).build();
+        let row = adw::ActionRow::builder().title(title).use_markup(false).build();
         let describe = |f: &FileField| {
             if !f.is_set() {
                 "None".to_string()
@@ -315,7 +315,7 @@ impl Editor {
     }
 
     fn script(&self, title: &str, field: fn(&mut EditorModel) -> &mut String) -> adw::ActionRow {
-        let row = adw::ActionRow::builder().title(title).build();
+        let row = adw::ActionRow::builder().title(title).use_markup(false).build();
         let show = |r: &adw::ActionRow, v: &str| {
             let name = std::path::Path::new(v)
                 .file_name()

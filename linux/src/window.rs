@@ -320,6 +320,7 @@ impl Window {
             let row = adw::ActionRow::builder()
                 .title(label)
                 .subtitle_selectable(true)
+                .use_markup(false)
                 .css_classes(["property"])
                 .build();
             group.add(&row);
@@ -341,6 +342,7 @@ impl Window {
                 let row = adw::ActionRow::builder()
                     .title(title)
                     .subtitle_selectable(true)
+                    .use_markup(false)
                     .css_classes(["property"])
                     .visible(false)
                     .build();
@@ -385,7 +387,11 @@ impl Window {
         let usage_rows: Vec<adw::ActionRow> = ["Today", "Last 7 days", "Last 30 days"]
             .into_iter()
             .map(|title| {
-                let row = adw::ActionRow::builder().title(title).css_classes(["property"]).build();
+                let row = adw::ActionRow::builder()
+                    .title(title)
+                    .use_markup(false)
+                    .css_classes(["property"])
+                    .build();
                 usage_group.add(&row);
                 row
             })
@@ -1019,6 +1025,7 @@ impl Window {
             d.check_button.set_label("Check");
         }
         let latency = report.map(|r| match r.latency {
+            Some(ms) if ms < 0.1 => "< 0.1 ms".to_string(),
             Some(ms) if ms < 10.0 => format!("{ms:.1} ms"),
             Some(ms) => format!("{ms:.0} ms"),
             None => "No reply".into(),

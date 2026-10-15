@@ -302,7 +302,7 @@ struct ConnectionCheckView: View {
             LabeledContent("Public IP", value: r.ip ?? "Unavailable")
             if let location = r.location { LabeledContent("Location", value: location) }
             if let org = r.organization { LabeledContent("Network", value: org) }
-            LabeledContent("Server latency", value: r.latency.map { String(format: $0 < 10 ? "%.1f ms" : "%.0f ms", $0) } ?? "No reply")
+            LabeledContent("Server latency", value: r.latency.map { $0 < 0.1 ? "< 0.1 ms" : String(format: $0 < 10 ? "%.1f ms" : "%.0f ms", $0) } ?? "No reply")
         }
         HStack {
             Text(result == nil ? "See the address websites see, and the latency to the server." : "Checked \(result!.time.formatted(date: .omitted, time: .shortened))")

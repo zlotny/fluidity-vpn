@@ -39,7 +39,7 @@ Maintainer: The Fluidity Contributors <fluidity@users.noreply.github.com>
 Section: net
 Priority: optional
 Homepage: https://github.com/zlotny/fluidity-vpn
-Depends: openvpn (>= 2.5), libgtk-4-1 (>= 4.14), libadwaita-1-0 (>= 1.5), libdbus-1-3, libc6
+Depends: openvpn (>= 2.5), libgtk-4-1 (>= 4.14), libadwaita-1-0 (>= 1.5), librsvg2-common, libdbus-1-3, libc6
 Recommends: obfs4proxy | lyrebird
 Installed-Size: $(du -sk "$deb/usr" | cut -f1)
 Description: Free and open source OpenVPN client
@@ -89,6 +89,7 @@ Requires: openvpn >= 2.5
 Requires: gtk4 >= 4.14
 Requires: libadwaita >= 1.5
 Requires: dbus-libs
+Requires: librsvg2
 AutoReqProv: no
 
 %description
