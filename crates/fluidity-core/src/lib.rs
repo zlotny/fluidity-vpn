@@ -1,4 +1,5 @@
 mod credentials;
+pub mod deploy;
 pub mod identity;
 mod preferences;
 mod store;

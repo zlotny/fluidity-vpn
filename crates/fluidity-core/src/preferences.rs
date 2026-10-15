@@ -98,7 +98,7 @@ impl Preferences {
         fs::rename(tmp, path)
     }
 
-    fn merge(&mut self, overrides: &serde_json::Value) {
+    pub(crate) fn merge(&mut self, overrides: &serde_json::Value) {
         let Ok(mut current) = serde_json::to_value(&*self) else {
             return;
         };

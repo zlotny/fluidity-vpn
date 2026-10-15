@@ -65,6 +65,15 @@ enum Commands {
     Versions,
     #[command(about = "List certificate identities in the system keychain")]
     Identities,
+    #[command(about = "Apply a preconfigured deployment")]
+    Deploy {
+        #[arg(long, help = "Deployment folder (default: the system deployment folder)")]
+        dir: Option<PathBuf>,
+        #[arg(long, value_parser = ["append", "replace", "overwrite"], help = "How to treat existing connections")]
+        mode: Option<String>,
+        #[arg(long, help = "Apply even if this version was applied before")]
+        force: bool,
+    },
     #[command(about = "Show or change service settings (changes need root)")]
     SystemSettings {
         #[arg(long)]
@@ -305,6 +314,41 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
                 }
             }
         },
+        Commands::Deploy { dir, mode, force } => {
+            use fluidity_core::deploy::{ConnectionMode, Deployment};
+            let store = Store::open_default().map_err(|e| e.to_string())?;
+            let dirs = dir.map(|d| vec![d]).unwrap_or_else(fluidity_core::deploy::system_dirs);
+            let deployment = if force {
+                dirs.iter().find_map(|d| Deployment::open(d))
+            } else {
+                Deployment::pending(&store, &dirs)
+            };
+            let Some(deployment) = deployment else {
+                println!("No pending deployment");
+                return Ok(ExitCode::SUCCESS);
+            };
+            let mode = match mode.as_deref() {
+                Some("append") => ConnectionMode::Append,
+                Some("overwrite") => ConnectionMode::Overwrite,
+                Some(_) => ConnectionMode::Replace,
+                None if deployment.manifest.connections == ConnectionMode::Prompt => ConnectionMode::Replace,
+                None => deployment.manifest.connections,
+            };
+            let report = deployment.apply(&store, mode).map_err(|e| e.to_string())?;
+            for (label, names) in [
+                ("Added", &report.added),
+                ("Updated", &report.updated),
+                ("Removed", &report.removed),
+                ("Kept", &report.skipped),
+            ] {
+                if !names.is_empty() {
+                    println!("{label}: {}", names.join(", "));
+                }
+            }
+            for error in &report.errors {
+                eprintln!("fluidity: {error}");
+            }
+        }
         Commands::Identities => {
             for name in fluidity_core::identity::names() {
                 println!("{name}");

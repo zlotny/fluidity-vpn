@@ -244,6 +244,34 @@ fn dispatch(method: &str, params: &Value) -> Result<Value, String> {
             )?;
             Ok(Value::Null)
         }
+        "deploy.pending" => {
+            #[derive(Deserialize)]
+            struct P {
+                #[serde(default)]
+                dirs: Vec<std::path::PathBuf>,
+            }
+            let p: P = parse(params)?;
+            let mut dirs = p.dirs;
+            dirs.extend(fluidity_core::deploy::system_dirs());
+            Ok(json!(fluidity_core::deploy::Deployment::pending(&store()?, &dirs)))
+        }
+        "deploy.apply" => {
+            #[derive(Deserialize)]
+            struct P {
+                dir: std::path::PathBuf,
+                mode: Option<fluidity_core::deploy::ConnectionMode>,
+            }
+            let p: P = parse(params)?;
+            let deployment = fluidity_core::deploy::Deployment::open(&p.dir).ok_or("No deployment found")?;
+            let store = store()?;
+            match p.mode {
+                Some(mode) => Ok(json!(deployment.apply(&store, mode).map_err(|e| e.to_string())?)),
+                None => {
+                    deployment.mark(&store).map_err(|e| e.to_string())?;
+                    Ok(json!(fluidity_core::deploy::Report::default()))
+                }
+            }
+        }
         "identity.list" => Ok(json!(fluidity_core::identity::names())),
         "identity.certificate" => {
             #[derive(Deserialize)]

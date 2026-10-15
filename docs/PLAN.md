@@ -132,6 +132,12 @@ Each phase ends with tests passing and a commit.
 11. **Windows.** Service, network backend, WinUI 3 tray app, MSI.
 12. **Updates and release.** Sparkle 2 (macOS), WinSparkle (Windows), distro packages (Linux). Reproducible OpenVPN and lyrebird builds.
 
+### Status
+
+- Phases 1 to 9 are done on macOS. FIDO2 is open.
+- Phases 10 and 11 are next. The daemon, CLI and Linux network backend build and pass e2e tests in Docker.
+- Phase 12: the GitHub release updater and reproducible OpenVPN and lyrebird builds are done.
+
 ## 5. Third-party components (all FOSS)
 
 | Component | License |

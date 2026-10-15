@@ -41,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         NSApp.applicationIconImage = Bundle.main.image(forResource: "AppIcon") ?? StatusIcon.appIcon()
         installMainMenu()
         manager.start()
+        Deployment.check(manager)
         statusMenu = StatusMenu(manager: manager)
         launched = true
         if !pendingOpen.isEmpty {
