@@ -229,7 +229,8 @@ mod tests {
         );
         let line = args.join(" ");
         assert!(line.starts_with("--config config.conf --management /run/x/mgmt.sock unix --management-hold"));
-        assert!(line.ends_with("--compat-mode 2.4.0 --log /dev/null --verb 3"));
+        let null = if cfg!(windows) { "NUL" } else { "/dev/null" };
+        assert!(line.ends_with(&format!("--compat-mode 2.4.0 --log {null} --verb 3")));
         assert!(!line.contains("external"));
     }
 
