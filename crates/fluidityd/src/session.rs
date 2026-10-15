@@ -5,7 +5,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use fluidity_config::Document;
 use fluidity_config::settings::Settings;
-use fluidity_ipc::{ChoiceOption, ConnectOptions, LogEntry, Prompt, Reply, SessionInfo, SessionState, StaticChallengePrompt};
+use fluidity_ipc::{
+    ChoiceOption, ConnectOptions, LogEntry, Prompt, Reply, SessionInfo, SessionState, StaticChallengePrompt,
+};
 use fluidity_mgmt::{
     Client as Mgmt, DynamicChallenge, Event as MgmtEvent, Need, PasswordRequest, Signal, State, StaticChallenge,
     static_challenge_password,
@@ -76,7 +78,7 @@ struct Session {
     time_machine_held: bool,
     holds: usize,
     release_at: Option<tokio::time::Instant>,
-    obfs: Option<Child>,
+    obfs: Option<obfs::Transport>,
 }
 
 pub fn spawn(daemon: Arc<Daemon>, spec: Spec, owner: u32, commands: mpsc::UnboundedReceiver<Command>) {
@@ -242,8 +244,8 @@ impl Session {
         if self.pending.take().is_some() {
             self.daemon.prompt(self.spec.generation, &self.spec.id, None).await;
         }
-        if let Some(mut child) = self.obfs.take() {
-            let _ = child.kill().await;
+        if let Some(transport) = self.obfs.take() {
+            transport.stop().await;
         }
         self.info.connected_since = None;
         self.info.bytes_in = 0;
@@ -275,21 +277,15 @@ impl Session {
             .ok_or("Obfuscation needs lyrebird, which is not installed")?;
         let state = dir.join("pt-state");
         std::fs::create_dir_all(&state).map_err(|e| e.to_string())?;
-        let (child, port) = obfs::start(&binary, method, &state).await?;
-        self.obfs = Some(child);
+        let args = obfs::transport_args(method, self.settings.obfuscation_key.as_deref());
+        let transport = obfs::start(&binary, method, &state, args).await?;
+        let port = transport.port;
+        self.obfs = Some(transport);
         self.log("info", format!("Obfuscation ({}) on 127.0.0.1:{port}", method.as_str()))
             .await;
-        let args = obfs::transport_args(method, self.settings.obfuscation_key.as_deref());
-        let document = obfs::rewrite(&self.spec.document, port, !args.is_empty());
-        let write = || -> std::io::Result<()> {
-            std::fs::write(dir.join(fluidity_config::CONFIG_FILE), document.to_string())?;
-            if !args.is_empty() {
-                let (user, pass) = obfs::socks_credentials(&args);
-                std::fs::write(dir.join(obfs::AUTH_FILE), format!("{user}\n{pass}\n"))?;
-            }
-            Ok(())
-        };
-        write().map_err(|e| format!("Cannot prepare connection files: {e}"))
+        let document = obfs::rewrite(&self.spec.document, port);
+        std::fs::write(dir.join(fluidity_config::CONFIG_FILE), document.to_string())
+            .map_err(|e| format!("Cannot prepare connection files: {e}"))
     }
 
     async fn launch(&self, dir: &Path, socket: &Path) -> Result<Child, String> {
