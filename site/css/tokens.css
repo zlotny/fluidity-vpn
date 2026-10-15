@@ -1,0 +1,77 @@
+/* Hallmark · genre: editorial · macrostructure: Conversational FAQ · theme: Almanac · enrichment: none · nav: N9 · footer: Ft1
+ * tone: editorial · audience: people with a VPN file from work or a provider · use: download · anchor hue: 250 (blue, from the app icon)
+ * axes: light paper / grotesk-sans display + serif body / cool accent
+ */
+
+:root {
+  color-scheme: light;
+
+  --color-paper:      oklch(95%  0.008 245);
+  --color-paper-2:    oklch(91.5% 0.010 245);
+  --color-paper-3:    oklch(87%  0.012 240);
+  --color-rule:       oklch(78%  0.012 240);
+  --color-rule-2:     oklch(38%  0.018 240);
+  --color-muted:      oklch(45%  0.014 245);
+  --color-neutral:    oklch(30%  0.016 245);
+  --color-ink-2:      oklch(22%  0.018 245);
+  --color-ink:        oklch(17%  0.020 245);
+  --color-accent:     oklch(45%  0.150 252);
+  --color-accent-deep:oklch(37%  0.135 252);
+  --color-accent-ink: oklch(97%  0.008 245);
+  --color-focus:      oklch(45%  0.150 252);
+  --color-live:       oklch(55%  0.140 150);
+  --color-idle:       oklch(65%  0.010 245);
+  --color-mark:       oklch(86%  0.060 240);
+
+  --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body:    "Newsreader", ui-serif, Georgia, serif;
+  --font-ui:      "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+
+  --display-weight: 700;
+
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1.125rem;
+  --text-md:   1.25rem;
+  --text-lg:   1.5rem;
+  --text-xl:   1.875rem;
+  --text-2xl:  2.25rem;
+  --text-display:   clamp(2.5rem, 4.5vw + 1rem, 4.75rem);
+  --text-display-s: clamp(1.625rem, 1.6vw + 1rem, 2.25rem);
+
+  --lh-tight:   1.04;
+  --lh-snug:    1.2;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.65;
+
+  --tracking-display: -0.03em;
+  --tracking-tight:   -0.012em;
+  --tracking-label:   0.04em;
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs:  0.5rem;
+  --space-sm:  0.75rem;
+  --space-md:  1rem;
+  --space-lg:  1.5rem;
+  --space-xl:  2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4.5rem;
+  --space-4xl: 7rem;
+
+  --measure:     60ch;
+  --page-max:    72rem;
+  --page-gutter: clamp(1rem, 4vw, 3rem);
+
+  --rule-hair: 1px;
+  --rule-fine: 1px;
+  --radius-card: 0;
+  --radius-pill: 0;
+
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:     cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+}

@@ -2,3 +2,4 @@
 /macos/.build
 /dist
 /linux/target
+/.hallmark

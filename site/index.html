@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fluidity · Free OpenVPN client for Mac, Windows and Linux</title>
+  <meta name="description" content="Fluidity is a free and open source OpenVPN client for macOS, Windows and Linux. Import your .ovpn file and connect in one click.">
+  <meta property="og:title" content="Fluidity">
+  <meta property="og:description" content="A free and open source OpenVPN client for macOS, Windows and Linux.">
+  <meta property="og:url" content="https://fluidity.ndrs.es/">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#eef1f6">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav-edge page">
+    <a class="wordmark" href="./" aria-label="Fluidity home">
+      <img src="icon.svg" alt="" width="28" height="28">
+      <span>Fluidity</span>
+    </a>
+    <a class="nav-cta" href="#download">Download</a>
+  </header>
+
+  <main id="main">
+    <section class="hero page">
+      <div class="hero-copy">
+        <h1>Connect to your VPN in one click.</h1>
+        <p class="lede">Fluidity is a free OpenVPN client for Mac, Windows and Linux. Open the file your workplace or VPN provider sent you, click its name, and you are on the network.</p>
+        <p class="lineage">A free and open source reimplementation of Viscosity.</p>
+        <div class="hero-actions">
+          <a class="btn" id="primary-download" href="https://github.com/zlotny/fluidity-vpn/releases/latest">Download Fluidity</a>
+          <a class="text-link" href="#download">Other systems</a>
+        </div>
+        <p class="meta">Version 0.1 · Free, no account · macOS, Windows, Linux</p>
+      </div>
+
+      <figure class="menu-figure">
+        <div class="menu" role="img" aria-label="The Fluidity menu with the Office connection connected and two other connections idle.">
+          <p class="menu-row is-live"><span class="dot"></span><span class="menu-name">Office</span><span class="menu-state">Connected</span></p>
+          <p class="menu-row"><span class="dot"></span><span class="menu-name">Home lab</span></p>
+          <p class="menu-row"><span class="dot"></span><span class="menu-name">Client site</span></p>
+          <hr>
+          <p class="menu-stat">Office · 10.8.0.6 · 2:14:07</p>
+          <p class="menu-stat">↓ 312 MB · ↑ 41 MB</p>
+          <hr>
+          <p class="menu-row is-action">Disconnect All</p>
+          <p class="menu-row is-action">Import Connection…</p>
+          <p class="menu-row is-action">Preferences</p>
+        </div>
+        <figcaption>The menu while one connection is up. It lives in the menu bar on a Mac and in the system tray on Windows and Linux.</figcaption>
+      </figure>
+    </section>
+
+    <section class="faq page" aria-label="Questions and answers">
+      <article class="qa">
+        <h2>What is this, exactly?</h2>
+        <p>Many workplaces, universities and VPN services hand out an OpenVPN file, usually ending in <code>.ovpn</code>. Fluidity is the app that opens it.</p>
+        <p>It keeps your connections in one short list, so getting on the network is a click instead of a terminal command. It shows when you are connected, how much data has gone through, and the log when something goes wrong.</p>
+      </article>
+
+      <article class="qa">
+        <h2>Is Fluidity a VPN service?</h2>
+        <p>No. Fluidity is the client, the app on your computer. You still need a VPN server: the one at your office, your university, or a provider you pay. If they give you an OpenVPN file, Fluidity can use it.</p>
+      </article>
+
+      <article class="qa">
+        <h2>Will my file work?</h2>
+        <p>Almost certainly. Fluidity reads <code>.ovpn</code> and <code>.conf</code> files, and the zip or tar.gz bundles some providers send with their certificates and keys. Drag the file onto the window, or choose <span class="ui">Import Connection</span>.</p>
+        <p>If your provider asks for a one-time code or a sign-in page, Fluidity asks you too. Smart cards, tokens and certificate files work as well.</p>
+      </article>
+
+      <article class="qa">
+        <h2>What does it cost?</h2>
+        <p>Nothing. Fluidity is free and open source under the <a href="https://github.com/zlotny/fluidity-vpn/blob/main/LICENSE">0BSD license</a>. There is no account, no subscription and no advertising. Anyone can read the <a href="https://github.com/zlotny/fluidity-vpn">source code</a>, change it, or build it.</p>
+      </article>
+
+      <article class="qa">
+        <h2>Where does my password go?</h2>
+        <p>Only where you let it. Turn on <span class="ui">Save Password</span> and Fluidity keeps it in your computer's own password store: the Keychain on a Mac, Credential Manager on Windows, the Secret Service on Linux. Leave it off and Fluidity asks each time.</p>
+      </article>
+
+      <article class="qa">
+        <h2>What happens when the Wi‑Fi drops?</h2>
+        <p>Fluidity reconnects when the network comes back and after your computer wakes from sleep. It puts your normal DNS settings back when a connection ends, even after a crash, so a lost tunnel does not leave you without internet.</p>
+      </article>
+
+      <article class="qa">
+        <h2>I have more than one VPN.</h2>
+        <p>Add as many as you need, sort them into folders, and run several at once. Each one keeps its own saved password, settings and log. For the curious, there is a full editor for every common OpenVPN option, scripts that run when you connect, and a <code>fluidity</code> command for the terminal.</p>
+      </article>
+
+      <article class="qa">
+        <h2>Our IT team wants to roll it out.</h2>
+        <p>Put a deployment folder next to the installer and every user gets the same connections, preferences and menu items on first launch. Managed preferences lock the settings you choose. Installers are a <code>.pkg</code> for macOS, an <code>.msi</code> for Windows, and <code>.deb</code> and <code>.rpm</code> packages for Linux. <a href="https://github.com/zlotny/fluidity-vpn#enterprise-deployment">Deployment guide</a>.</p>
+      </article>
+    </section>
+
+    <section class="download page" id="download" aria-labelledby="download-title">
+      <h2 id="download-title">Which file do I need?</h2>
+      <table class="spec">
+        <thead>
+          <tr><th scope="col">Your computer</th><th scope="col">Download</th><th scope="col">Good to know</th></tr>
+        </thead>
+        <tbody>
+          <tr data-os="mac">
+            <th scope="row">Mac, macOS 13 Ventura or later</th>
+            <td><a href="https://github.com/zlotny/fluidity-vpn/releases/latest">Fluidity .pkg</a></td>
+            <td>OpenVPN is included.</td>
+          </tr>
+          <tr data-os="windows">
+            <th scope="row">Windows 10 or 11, 64-bit</th>
+            <td><a href="https://github.com/zlotny/fluidity-vpn/releases/latest">Fluidity .msi</a></td>
+            <td>Install <a href="https://openvpn.net/community-downloads/">OpenVPN 2.6 or later</a> first.</td>
+          </tr>
+          <tr data-os="linux">
+            <th scope="row">Ubuntu 24.04, Debian 13</th>
+            <td><a href="https://github.com/zlotny/fluidity-vpn/releases/latest">Fluidity .deb</a></td>
+            <td>On GNOME, add the AppIndicator extension for the tray icon.</td>
+          </tr>
+          <tr data-os="linux">
+            <th scope="row">Fedora 42</th>
+            <td><a href="https://github.com/zlotny/fluidity-vpn/releases/latest">Fluidity .rpm</a></td>
+            <td>On GNOME, add the AppIndicator extension for the tray icon.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="after-table">Prefer to build it yourself? The <a href="https://github.com/zlotny/fluidity-vpn#build-from-source">build instructions</a> cover all three systems.</p>
+    </section>
+  </main>
+
+  <footer class="foot-mast page">
+    <p class="foot-word"><img src="icon.svg" alt="" width="22" height="22"> Fluidity</p>
+    <p class="foot-tag">A free OpenVPN client for macOS, Windows and Linux.</p>
+    <p class="foot-links">
+      <a href="https://github.com/zlotny/fluidity-vpn">Source</a>
+      <a href="https://github.com/zlotny/fluidity-vpn/blob/main/LICENSE">License</a>
+      <a href="https://github.com/zlotny/fluidity-vpn/issues">Report a problem</a>
+    </p>
+  </footer>
+
+  <script src="js/os.js" defer></script>
+</body>
+</html>
