@@ -29,7 +29,7 @@
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.utilities</string>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright © Fluidity contributors. GPL-3.0-or-later.</string>
+  <string>Copyright © Fluidity contributors. 0BSD.</string>
   <key>NSAppleScriptEnabled</key>
   <true/>
   <key>OSAScriptingDefinition</key>

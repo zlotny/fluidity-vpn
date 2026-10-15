@@ -131,7 +131,7 @@ fn about(app: &Rc<App>) {
         .version(env!("CARGO_PKG_VERSION"))
         .website(WEBSITE)
         .issue_url(format!("{WEBSITE}/issues"))
-        .license_type(gtk::License::Gpl30)
+        .license_type(gtk::License::_0bsd)
         .comments("A free and open source OpenVPN client.")
         .build();
     dialog.present(Some(&app.parent()));

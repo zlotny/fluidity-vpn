@@ -682,7 +682,7 @@ struct AboutPane: View {
             Text("Fluidity").font(.largeTitle.bold())
             Text("Version \(AppInfo.version)").foregroundStyle(.secondary)
             Text("A free and open source OpenVPN client.")
-            Text("Licensed under the GNU General Public License v3.0 or later.")
+            Text("Licensed under the BSD Zero Clause License (0BSD).")
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Link("Website", destination: AppInfo.website)

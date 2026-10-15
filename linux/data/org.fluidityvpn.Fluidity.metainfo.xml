@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>org.fluidityvpn.Fluidity</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>GPL-3.0-or-later</project_license>
+  <project_license>0BSD</project_license>
   <name>Fluidity</name>
   <summary>Connect to OpenVPN servers</summary>
   <description>

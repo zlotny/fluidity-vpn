@@ -83,7 +83,7 @@ Name: fluidity
 Version: $version
 Release: 1
 Summary: Free and open source OpenVPN client
-License: GPL-3.0-or-later
+License: 0BSD
 URL: https://github.com/zlotny/fluidity-vpn
 Requires: openvpn >= 2.5
 Requires: gtk4 >= 4.14
