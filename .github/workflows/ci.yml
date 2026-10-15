@@ -56,7 +56,12 @@ jobs:
         run: |
           if (-not (Test-Path C:\gtk-build\gtk\x64\release\lib\pkgconfig\libadwaita-1.pc)) {
             pip install "gvsbuild==$env:GVSBUILD"
-            gvsbuild build --vs-ver vs2026 gtk4 libadwaita librsvg adwaita-icon-theme
+            for ($i = 1; $i -le 3; $i++) {
+              gvsbuild build --vs-ver vs2026 gtk4 libadwaita librsvg adwaita-icon-theme
+              if ($LASTEXITCODE -eq 0) { break }
+              if ($i -eq 3) { exit $LASTEXITCODE }
+              Start-Sleep -Seconds 30
+            }
           }
       - name: Install WiX
         shell: pwsh
