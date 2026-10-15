@@ -1,3 +1,4 @@
+#[cfg(not(windows))]
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -10,12 +11,14 @@ use crate::state;
 
 pub const APP_ID: &str = "org.fluidityvpn.Fluidity";
 
+#[cfg(not(windows))]
 fn autostart_file() -> PathBuf {
     glib::user_config_dir()
         .join("autostart")
         .join(format!("{APP_ID}.desktop"))
 }
 
+#[cfg(not(windows))]
 pub fn set_autostart(enabled: bool) -> std::io::Result<()> {
     let path = autostart_file();
     if !enabled {
@@ -34,6 +37,27 @@ pub fn set_autostart(enabled: bool) -> std::io::Result<()> {
             "[Desktop Entry]\nType=Application\nName=Fluidity\nExec={exe} --hidden\nIcon={APP_ID}\nX-GNOME-Autostart-enabled=true\nNoDisplay=true\n"
         ),
     )
+}
+
+#[cfg(windows)]
+pub fn set_autostart(enabled: bool) -> std::io::Result<()> {
+    use std::os::windows::process::CommandExt;
+    const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut command = std::process::Command::new("reg");
+    if enabled {
+        let exe = std::env::current_exe()?;
+        let value = format!("\"{}\" --hidden", exe.display());
+        command.args(["add", RUN_KEY, "/v", "Fluidity", "/t", "REG_SZ", "/d", &value, "/f"]);
+    } else {
+        command.args(["delete", RUN_KEY, "/v", "Fluidity", "/f"]);
+    }
+    let status = command.creation_flags(CREATE_NO_WINDOW).status()?;
+    if status.success() || !enabled {
+        Ok(())
+    } else {
+        Err(std::io::Error::other("reg failed"))
+    }
 }
 
 fn switch(

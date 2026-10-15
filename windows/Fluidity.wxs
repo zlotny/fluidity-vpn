@@ -1,0 +1,55 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Fluidity" Manufacturer="Fluidity" Version="$(Version)" UpgradeCode="454A57D8-DF29-4254-B550-5038DCB6999E" Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Fluidity is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="FluidityIcon" SourceFile="$(sys.SOURCEFILEDIR)fluidity.ico" />
+    <Property Id="ARPPRODUCTICON" Value="FluidityIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/fluidity-vpn/fluidity" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(StageDir)\license.rtf" />
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Fluidity">
+        <Directory Id="GTKDIR" Name="gtk">
+          <Directory Id="GTKBIN" Name="bin" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Fluidity" Level="1">
+      <ComponentGroupRef Id="Core" />
+      <ComponentGroupRef Id="Runtime" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="Core">
+      <Component Id="Daemon" Directory="INSTALLFOLDER">
+        <File Id="FluiditydExe" Source="$(StageDir)\fluidityd.exe" KeyPath="yes" />
+        <ServiceInstall Name="fluidityd" DisplayName="Fluidity VPN Service" Description="Manages Fluidity VPN connections." Type="ownProcess" Start="auto" ErrorControl="normal" Account="LocalSystem" Arguments="--service" />
+        <ServiceControl Id="DaemonControl" Name="fluidityd" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+      </Component>
+      <Component Id="Cli" Directory="INSTALLFOLDER">
+        <File Id="FluidityCliExe" Source="$(StageDir)\fluidity.exe" KeyPath="yes" />
+        <Environment Id="PathEntry" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes" />
+      </Component>
+      <Component Id="App" Directory="GTKBIN">
+        <File Id="FluidityExe" Source="$(StageDir)\gtk\bin\Fluidity.exe" KeyPath="yes">
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Fluidity" Description="OpenVPN client" WorkingDirectory="GTKBIN" Icon="FluidityIcon" Advertise="yes" />
+        </File>
+        <ProgId Id="Fluidity.Connection" Description="Fluidity Connection" Icon="FluidityIcon" Advertise="yes">
+          <Extension Id="fvpnz" ContentType="application/x-fluidity-connection">
+            <Verb Id="open" Command="Open" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="Runtime" Directory="GTKDIR">
+      <Files Include="$(StageDir)\gtk\**">
+        <Exclude Files="$(StageDir)\gtk\bin\Fluidity.exe" />
+      </Files>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

@@ -1,3 +1,4 @@
 /target
 /macos/.build
 /dist
+/linux/target

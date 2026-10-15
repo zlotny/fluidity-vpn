@@ -22,7 +22,8 @@ Free and open source OpenVPN client for macOS, Windows, and Linux.
 | `crates/fluidity-cli` | `fluidity` command-line tool. |
 | `crates/fluidity-ffi` | C interface for native user interfaces. |
 | `macos/` | macOS app (Swift). |
-| `linux/` | Linux app (GTK 4, libadwaita), systemd unit, desktop files, packaging. |
+| `linux/` | GTK 4 and libadwaita app for Linux and Windows, systemd unit, desktop files, Linux packaging. |
+| `windows/` | Windows installer (WiX). |
 | `tests/e2e/` | End-to-end tests against a real OpenVPN server in Docker. |
 
 ## Build
@@ -45,6 +46,17 @@ tests/e2e/run-linux-gui.sh                 # GUI test under Xvfb
 ```
 
 The packages install `fluidityd` as a systemd service, the `fluidity` CLI and the `fluidity-gtk` app. The Linux app needs GTK 4.14 and libadwaita 1.5. The tray icon needs a StatusNotifierItem host (KDE, or GNOME with the AppIndicator extension).
+
+Windows builds run on Windows with the MSVC toolchain, GTK 4 and libadwaita from [gvsbuild](https://github.com/wingtk/gvsbuild), and WiX 6:
+
+```powershell
+gvsbuild build gtk4 libadwaita librsvg adwaita-icon-theme
+dotnet tool install --global wix --version 6.0.2
+wix extension add -g WixToolset.UI.wixext/6.0.2
+windows\build-msi.ps1      # dist\windows\Fluidity-<version>-x64.msi
+```
+
+The MSI installs `fluidityd` as the `fluidityd` service, the `fluidity` CLI on `PATH` and the GTK app with its runtime. It needs [OpenVPN 2.6 or later](https://openvpn.net/community-downloads/) in `C:\Program Files\OpenVPN`. DNS uses NRPT rules. The CI job `windows-msi` builds it.
 
 `build-app.sh` reads `TARGETS` (Rust target triples), `OPENVPN_DIR` (OpenVPN builds to bundle, one folder per version), `SIGN_IDENTITY` and `INSTALLER_IDENTITY`.
 

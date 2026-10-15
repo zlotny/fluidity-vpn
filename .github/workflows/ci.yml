@@ -34,3 +34,39 @@ jobs:
         working-directory: linux
       - run: cargo test
         working-directory: linux
+  windows-msi:
+    runs-on: windows-latest
+    env:
+      GVSBUILD: "2026.8.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - uses: actions/cache@v4
+        with:
+          path: C:\gtk-build\gtk
+          key: gvsbuild-${{ env.GVSBUILD }}-gtk4-adwaita-rsvg
+      - name: Build GTK
+        shell: pwsh
+        run: |
+          if (-not (Test-Path C:\gtk-build\gtk\x64\release\lib\pkgconfig\libadwaita-1.pc)) {
+            pip install "gvsbuild==$env:GVSBUILD"
+            gvsbuild build gtk4 libadwaita librsvg adwaita-icon-theme
+          }
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 6.0.2
+          wix extension add -g WixToolset.UI.wixext/6.0.2
+      - name: Build MSI
+        shell: pwsh
+        run: windows\build-msi.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fluidity-windows
+          path: dist\windows\*.msi

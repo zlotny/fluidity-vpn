@@ -103,9 +103,9 @@ async fn run(ui: async_channel::Sender<Message>, commands: async_channel::Receiv
     }
 }
 
-async fn update_tray(tray: &Option<ksni::Handle<tray::Tray>>, snapshot: TraySnapshot) {
+async fn update_tray(tray: &Option<tray::Handle>, snapshot: TraySnapshot) {
     if let Some(handle) = tray {
-        handle.update(move |t| t.snapshot = snapshot).await;
+        handle.update(snapshot).await;
     }
 }
 

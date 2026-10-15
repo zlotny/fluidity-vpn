@@ -70,7 +70,7 @@ Fluidity is a free and open source OpenVPN client for macOS, Windows, and Linux.
  user session    |  Native UI       |       |  fluidity (CLI)   |
                  |  macOS: Swift    |       |  Rust             |
                  |  Linux: GTK4/Rust|       +---------+---------+
-                 |  Windows: WinUI  |                 |
+                 |  Windows: GTK4   |                 |
                  +--------+---------+                 |
                           |  JSON-RPC over local IPC  |
                           v  (Unix socket / named pipe, peer-credential auth)
@@ -129,14 +129,14 @@ Each phase ends with tests passing and a commit.
 8. **Automation.** Scripts, conditional connections, AppleScript, menu items, CLI parity.
 9. **Enterprise.** Preconfigured deployment, managed preferences, `.fvpnz` export, `.pkg` installer.
 10. **Linux.** systemd service, network backend, GTK4 UI with tray, deb/rpm/Flatpak.
-11. **Windows.** Service, network backend, WinUI 3 tray app, MSI.
+11. **Windows.** Service, network backend, GTK4 app with a tray, MSI.
 12. **Updates and release.** Sparkle 2 (macOS), WinSparkle (Windows), distro packages (Linux). Reproducible OpenVPN and lyrebird builds.
 
 ### Status
 
 - Phases 1 to 9 are done on macOS. FIDO2 is open.
 - Phase 10 is done except Flatpak: GTK4 and libadwaita app with an SNI tray, systemd service, deb and rpm packages, a GUI e2e test in Docker. Keychain identities are macOS only.
-- Phase 11 is next.
+- Phase 11 is code complete and untested on Windows: service with an ACL-protected named pipe, TCP management with a password, NRPT DNS, IPv6 firewall block, the GTK app with a Win32 tray, a WiX MSI and a CI job. Interface proxies and certificate store identities are not on Windows.
 - Phase 12: the GitHub release updater and reproducible OpenVPN and lyrebird builds are done.
 
 ## 5. Third-party components (all FOSS)

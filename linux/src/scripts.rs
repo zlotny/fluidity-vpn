@@ -43,13 +43,7 @@ pub fn environment(
 
 pub fn run(path: &str, env: &HashMap<String, String>, timeout: Duration) -> (i32, String) {
     let script = Path::new(path);
-    let mut command = if is_executable(script) {
-        Command::new(script)
-    } else {
-        let mut c = Command::new("/bin/sh");
-        c.arg(script);
-        c
-    };
+    let mut command = command_for(script);
     if let Some(dir) = script.parent() {
         command.current_dir(dir);
     }
@@ -88,6 +82,44 @@ pub fn run(path: &str, env: &HashMap<String, String>, timeout: Duration) -> (i32
     (status, reader.join().unwrap_or_default())
 }
 
+#[cfg(not(windows))]
+fn command_for(script: &Path) -> Command {
+    if is_executable(script) {
+        Command::new(script)
+    } else {
+        let mut c = Command::new("/bin/sh");
+        c.arg(script);
+        c
+    }
+}
+
+#[cfg(windows)]
+fn command_for(script: &Path) -> Command {
+    use std::os::windows::process::CommandExt;
+    let ext = script
+        .extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    let mut c = match ext.as_str() {
+        "ps1" => {
+            let mut c = Command::new("powershell.exe");
+            c.args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"]);
+            c.arg(script);
+            c
+        }
+        "vbs" | "js" => {
+            let mut c = Command::new("cscript.exe");
+            c.args(["//NoLogo", "//B"]);
+            c.arg(script);
+            c
+        }
+        _ => Command::new(script),
+    };
+    c.creation_flags(0x0800_0000);
+    c
+}
+
+#[cfg(not(windows))]
 fn is_executable(path: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;
     path.metadata()
@@ -191,6 +223,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    #[cfg(unix)]
     #[test]
     fn runs_scripts_with_environment() {
         let dir = std::env::temp_dir().join(format!("fl-script-{}", std::process::id()));
