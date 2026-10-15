@@ -2,6 +2,7 @@
 
 mod app;
 mod backend;
+mod check;
 mod editor;
 mod prefs;
 mod prompt;

@@ -35,6 +35,9 @@ struct Detail {
     usage_rows: Vec<adw::ActionRow>,
     usage_graph: gtk::DrawingArea,
     usage_reset: gtk::Button,
+    check_group: adw::PreferencesGroup,
+    check_rows: Vec<adw::ActionRow>,
+    check_button: gtk::Button,
 }
 
 pub struct Window {
@@ -48,6 +51,7 @@ pub struct Window {
     split: adw::NavigationSplitView,
     detail: Detail,
     banner: adw::Banner,
+    check: RefCell<Option<(String, crate::check::Report)>>,
 }
 
 const STATUS_ROWS: [(&str, &str); 10] = [
@@ -249,6 +253,7 @@ impl Window {
             split,
             detail,
             banner,
+            check: RefCell::default(),
         });
         window.wire(app);
         window.rebuild();
@@ -320,10 +325,39 @@ impl Window {
             group.add(&row);
             rows.insert(key, row);
         }
+        let check_button = gtk::Button::builder()
+            .label("Check")
+            .valign(gtk::Align::Center)
+            .action_name("win.check")
+            .build();
+        let check_group = adw::PreferencesGroup::builder()
+            .title("Connection Check")
+            .description("See the address websites see, and the latency to the server.")
+            .header_suffix(&check_button)
+            .build();
+        let check_rows: Vec<adw::ActionRow> = ["Public IP", "Location", "Network", "Server Latency"]
+            .into_iter()
+            .map(|title| {
+                let row = adw::ActionRow::builder()
+                    .title(title)
+                    .subtitle_selectable(true)
+                    .css_classes(["property"])
+                    .visible(false)
+                    .build();
+                check_group.add(&row);
+                row
+            })
+            .collect();
+        let status_box = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(18)
+            .build();
+        status_box.append(&group);
+        status_box.append(&check_group);
         let status_page = gtk::ScrolledWindow::builder()
             .hscrollbar_policy(gtk::PolicyType::Never)
             .vexpand(true)
-            .child(&group)
+            .child(&status_box)
             .build();
         stack.add_titled_with_icon(&status_page, Some("status"), "Status", "network-wired-symbolic");
 
@@ -445,6 +479,9 @@ impl Window {
                 usage_rows,
                 usage_graph,
                 usage_reset,
+                check_group,
+                check_rows,
+                check_button,
             },
             view.upcast(),
         )
@@ -531,6 +568,32 @@ impl Window {
             Box::new(|app, w, id| {
                 app.logs.borrow_mut().insert(id, Vec::new());
                 w.detail.log.buffer().set_text("");
+            }),
+        );
+
+        action(
+            "check",
+            Box::new(|app, w, id| {
+                let server = app
+                    .sessions
+                    .borrow()
+                    .get(&id)
+                    .map(|s| s.remote_address.clone())
+                    .unwrap_or_default();
+                w.detail.check_button.set_sensitive(false);
+                w.detail.check_button.set_label("Checking…");
+                let weak = Rc::downgrade(w);
+                glib::spawn_future_local(async move {
+                    let report = gio::spawn_blocking(move || crate::check::run(&server))
+                        .await
+                        .unwrap_or_default();
+                    if let Some(w) = weak.upgrade() {
+                        *w.check.borrow_mut() = Some((id, report));
+                        w.detail.check_button.set_sensitive(true);
+                        w.detail.check_button.set_label("Check Again");
+                        w.refresh_detail();
+                    }
+                });
             }),
         );
 
@@ -948,6 +1011,27 @@ impl Window {
             if let Some(row) = d.rows.get(key) {
                 row.set_subtitle(&value);
             }
+        }
+        d.check_group.set_visible(connected.is_some());
+        let check = self.check.borrow();
+        let report = check.as_ref().filter(|(cid, _)| *cid == id).map(|(_, r)| r);
+        if report.is_none() && d.check_button.is_sensitive() {
+            d.check_button.set_label("Check");
+        }
+        let latency = report.map(|r| match r.latency {
+            Some(ms) if ms < 10.0 => format!("{ms:.1} ms"),
+            Some(ms) => format!("{ms:.0} ms"),
+            None => "No reply".into(),
+        });
+        let values = [
+            report.map(|r| r.ip.clone().unwrap_or_else(|| "Unavailable".into())),
+            report.and_then(|r| r.location.clone()),
+            report.and_then(|r| r.network.clone()),
+            latency,
+        ];
+        for (row, value) in d.check_rows.iter().zip(values) {
+            row.set_visible(value.is_some());
+            row.set_subtitle(value.as_deref().unwrap_or_default());
         }
         let traffic = app.traffic.borrow();
         let last = traffic.get(&id).and_then(|t| t.last().copied());

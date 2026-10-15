@@ -23,7 +23,7 @@ Fluidity sits in your menu bar or system tray and manages all your OpenVPN conne
 - Folders, drag and drop ordering, connect all, disconnect all.
 - Live status, traffic statistics, traffic graphs and the OpenVPN log per connection.
 - Data usage history per connection for today, the last 7 days and the last 30 days.
-- A connection check that shows your public IP, its location and the latency to the server (macOS).
+- A connection check that shows your public IP, its location and the latency to the server.
 - Notifications when connections go up or down.
 
 **Editing and import**
@@ -101,6 +101,8 @@ Open these links from a browser, a launcher, a shortcut or another app:
 | `fluidity://connect/My%20VPN` | Connect "My VPN". Without a name, connect the last used connection. |
 | `fluidity://disconnect/My%20VPN` | Disconnect "My VPN". Without a name, disconnect all connections. |
 | `fluidity://toggle/My%20VPN` | Connect or disconnect "My VPN". Without a name, connect the last used connection, or disconnect all. |
+
+On macOS, Preferences > General sets a global shortcut for `toggle`. On Linux, bind `xdg-open fluidity://toggle` to a key in your desktop's keyboard settings.
 
 ### AppleScript
 
