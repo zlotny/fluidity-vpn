@@ -105,20 +105,17 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             add(nodes: manager.tree, to: menu)
             let listed = Set(flatten(manager.tree))
             for c in manager.orderedConnections where !listed.contains(c.id) {
-                menu.addItem(connectionItem(c))
+                addConnection(c, to: menu)
             }
         }
         let active = manager.activeSessions
-        if !active.isEmpty {
-            menu.addItem(.separator())
-            for s in active {
-                let stat = NSMenuItem(title: statTitle(s), action: nil, keyEquivalent: "")
-                stat.isEnabled = false
-                statItems[s.id] = stat
-                menu.addItem(stat)
-            }
-        }
         menu.addItem(.separator())
+        if !active.isEmpty {
+            let count = active.count == 1 ? "1 Active Connection" : "\(active.count) Active Connections"
+            let header = NSMenuItem(title: count, action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+        }
         if active.count > 0 {
             menu.addItem(action("Disconnect All", #selector(disconnectAll)))
         }
@@ -163,7 +160,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         for node in nodes {
             switch node {
             case .connection(let id):
-                if let c = manager.connections[id] { menu.addItem(connectionItem(c)) }
+                if let c = manager.connections[id] { addConnection(c, to: menu) }
             case .folder(let folder):
                 let item = NSMenuItem(title: folder.name, action: nil, keyEquivalent: "")
                 item.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
@@ -185,6 +182,30 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                 menu.addItem(item)
             }
         }
+    }
+
+    private func addConnection(_ c: ConnectionInfo, to menu: NSMenu) {
+        menu.addItem(connectionItem(c))
+        guard let s = manager.sessions[c.id], s.state == .connected else { return }
+        let stat = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        stat.isEnabled = false
+        stat.indentationLevel = 1
+        statItems[s.id] = stat
+        updateStat(stat, s)
+        menu.addItem(stat)
+    }
+
+    private func updateStat(_ item: NSMenuItem, _ s: SessionInfo) {
+        let font = NSFont.menuFont(ofSize: NSFont.smallSystemFontSize)
+        let title = NSMutableAttributedString(string: statTitle(s) + "  ", attributes: [
+            .font: font,
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ])
+        let spark = NSTextAttachment()
+        spark.image = Sparkline.image(manager.traffic[s.id] ?? [])
+        spark.bounds = NSRect(x: 0, y: font.descender, width: 36, height: 12)
+        title.append(NSAttributedString(attachment: spark))
+        item.attributedTitle = title
     }
 
     private func connectionItem(_ c: ConnectionInfo) -> NSMenuItem {
@@ -215,27 +236,23 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     private func statTitle(_ s: SessionInfo) -> String {
-        var parts = [s.name + ":"]
-        if s.state == .connected {
-            if let since = s.connectedSince {
-                parts.append(Format.duration(Date().timeIntervalSince1970 - Double(since)))
-            }
-            let address = manager.preferences.addressDisplay == "ipv6" && !s.localIpv6.isEmpty ? s.localIpv6 : s.localIpv4
-            if !address.isEmpty { parts.append(address) }
-            if manager.preferences.trafficDisplay == "totals" {
-                parts.append("↓\(Format.bytes(Double(s.bytesIn))) ↑\(Format.bytes(Double(s.bytesOut)))")
-            } else if let last = manager.traffic[s.id]?.last {
-                parts.append("↓\(Format.bytes(last.inRate))/s ↑\(Format.bytes(last.outRate))/s")
-            }
-        } else {
-            parts.append(s.state.label)
+        var parts: [String] = []
+        let address = manager.preferences.addressDisplay == "ipv6" && !s.localIpv6.isEmpty ? s.localIpv6 : s.localIpv4
+        if !address.isEmpty { parts.append(address) }
+        if manager.preferences.trafficDisplay == "totals" {
+            parts.append("↓\(Format.bytes(Double(s.bytesIn))) ↑\(Format.bytes(Double(s.bytesOut)))")
+        } else if let last = manager.traffic[s.id]?.last {
+            parts.append("↓\(Format.bytes(last.inRate))/s ↑\(Format.bytes(last.outRate))/s")
         }
-        return parts.joined(separator: " ")
+        if let since = s.connectedSince {
+            parts.append(Format.duration(Date().timeIntervalSince1970 - Double(since)))
+        }
+        return parts.joined(separator: "  ")
     }
 
     private func updateStats() {
         for (id, item) in statItems {
-            if let s = manager.sessions[id] { item.title = statTitle(s) }
+            if let s = manager.sessions[id] { updateStat(item, s) }
         }
     }
 
@@ -355,5 +372,35 @@ enum Format {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return f.string(from: Date(timeIntervalSince1970: TimeInterval(epoch)))
+    }
+}
+
+enum Sparkline {
+    static func image(_ samples: [TrafficSample]) -> NSImage {
+        let size = NSSize(width: 36, height: 12)
+        let recent = Array(samples.suffix(30))
+        return NSImage(size: size, flipped: false) { rect in
+            let peak = recent.map { max($0.inRate, $0.outRate) }.max() ?? 0
+            guard recent.count > 1, peak > 0 else {
+                NSColor.tertiaryLabelColor.setFill()
+                NSRect(x: 0, y: 0, width: rect.width, height: 1).fill()
+                return true
+            }
+            let step = rect.width / CGFloat(recent.count - 1)
+            func path(_ value: (TrafficSample) -> Double) -> NSBezierPath {
+                let p = NSBezierPath()
+                for (i, sample) in recent.enumerated() {
+                    let point = NSPoint(x: CGFloat(i) * step, y: 1 + CGFloat(value(sample) / peak) * (rect.height - 2))
+                    i == 0 ? p.move(to: point) : p.line(to: point)
+                }
+                p.lineWidth = 1
+                return p
+            }
+            NSColor.systemGreen.setStroke()
+            path(\.outRate).stroke()
+            NSColor.systemBlue.setStroke()
+            path(\.inRate).stroke()
+            return true
+        }
     }
 }
