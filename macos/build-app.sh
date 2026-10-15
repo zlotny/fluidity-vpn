@@ -82,13 +82,15 @@ if [ "${PKG:-0}" = 1 ]; then
   cp -R "$app" "$pkgroot/root/Applications/"
   cp "$here/Resources/postinstall" "$pkgroot/scripts/postinstall"
   chmod +x "$pkgroot/scripts/postinstall"
-  pkgbuild --root "$pkgroot/root" --scripts "$pkgroot/scripts" --identifier org.fluidityvpn.Fluidity.pkg \
-    --version "$version" --install-location / "$pkgroot/Fluidity.pkg"
-  if [ -n "${INSTALLER_IDENTITY:-}" ]; then
-    productbuild --package "$pkgroot/Fluidity.pkg" --sign "$INSTALLER_IDENTITY" "$dist/Fluidity-$version.pkg"
-  else
-    productbuild --package "$pkgroot/Fluidity.pkg" "$dist/Fluidity-$version.pkg"
-  fi
+  pkgbuild --analyze --root "$pkgroot/root" "$pkgroot/component.plist" >/dev/null
+  plutil -replace 0.BundleIsRelocatable -bool NO "$pkgroot/component.plist"
+  pkgbuild --root "$pkgroot/root" --component-plist "$pkgroot/component.plist" --scripts "$pkgroot/scripts" \
+    --identifier org.fluidityvpn.Fluidity.pkg --version "$version" --install-location / "$pkgroot/Fluidity.pkg"
+  productbuild --synthesize --package "$pkgroot/Fluidity.pkg" "$pkgroot/distribution.xml"
+  sed -i '' "s|<installer-gui-script minSpecVersion=\"[0-9]*\">|&<title>Fluidity $version</title>|" "$pkgroot/distribution.xml"
+  set -- --distribution "$pkgroot/distribution.xml" --package-path "$pkgroot"
+  if [ -n "${INSTALLER_IDENTITY:-}" ]; then set -- "$@" --sign "$INSTALLER_IDENTITY"; fi
+  productbuild "$@" "$dist/Fluidity-$version.pkg"
   rm -rf "$pkgroot"
   echo "$dist/Fluidity-$version.pkg"
 fi
