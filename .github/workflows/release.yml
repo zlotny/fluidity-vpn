@@ -1,0 +1,101 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish
+        required: true
+permissions:
+  contents: write
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: macos/build-openvpn.sh
+      - run: macos/build-lyrebird.sh
+      - run: PKG=1 TARGETS="aarch64-apple-darwin x86_64-apple-darwin" macos/build-app.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.pkg
+
+  linux:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - run: docker build -t fluidity-linux linux
+      - run: docker run --rm -v "$PWD":/src -e CARGO_TARGET_DIR=/target -w /src/linux fluidity-linux sh /src/linux/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.runner }}
+          path: dist/linux/*
+
+  windows:
+    runs-on: windows-latest
+    env:
+      GVSBUILD: "2026.8.0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - uses: actions/cache@v4
+        with:
+          path: C:\gtk-build\gtk
+          key: gvsbuild-${{ env.GVSBUILD }}-vs18-gtk4-adwaita-rsvg
+      - name: Build GTK
+        shell: pwsh
+        run: |
+          if (-not (Test-Path C:\gtk-build\gtk\x64\release\lib\pkgconfig\libadwaita-1.pc)) {
+            pip install "gvsbuild==$env:GVSBUILD"
+            gvsbuild build --vs-ver vs2026 gtk4 libadwaita librsvg adwaita-icon-theme
+          }
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 6.0.2
+          wix extension add -g WixToolset.UI.wixext/6.0.2
+      - name: Build MSI
+        shell: pwsh
+        run: windows\build-msi.ps1 -Version ($env:TAG.TrimStart('v'))
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist\windows\*.msi
+
+  publish:
+    needs: [macos, linux, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - run: ls -la out
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --title "Fluidity ${TAG#v}" --generate-notes
