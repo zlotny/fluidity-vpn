@@ -88,12 +88,7 @@ fn startup(gtk_app: &adw::Application) {
 
 fn load_css() {
     let provider = gtk::CssProvider::new();
-    provider.load_from_string(
-        ".success { color: var(--success-color, @success_color); }\n\
-         .warning { color: var(--warning-color, @warning_color); }\n\
-         .error { color: var(--error-color, @error_color); }\n\
-         row.property .subtitle { font-feature-settings: \"tnum\"; }",
-    );
+    provider.load_from_string("row.property .subtitle { font-feature-settings: \"tnum\"; }");
     if let Some(display) = gtk::gdk::Display::default() {
         gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
