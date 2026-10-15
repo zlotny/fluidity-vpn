@@ -4,9 +4,11 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use super::{Backend, run, run_with_input, state_file, state_files};
+use crate::killswitch::{Rules, nft_rules as kill_switch_rules};
 use crate::netconfig::{NetConfig, ResolvedDns};
 
 const RESOLV_CONF: &str = "/etc/resolv.conf";
+const KILL_SWITCH_TABLE: &str = "fluiditykillswitch";
 
 pub struct LinuxBackend {
     state_dir: PathBuf,
@@ -153,7 +155,24 @@ impl Backend for LinuxBackend {
         let _ = fs::remove_file(path);
     }
 
+    fn kill_switch(&self, rules: Option<&Rules>) -> Result<(), String> {
+        match rules {
+            Some(rules) => {
+                let script = format!(
+                    "add table inet {KILL_SWITCH_TABLE}\ndelete table inet {KILL_SWITCH_TABLE}\n{}",
+                    kill_switch_rules(KILL_SWITCH_TABLE, rules)
+                );
+                run_with_input("nft", &["-f", "-"], &script).map(|_| ())
+            }
+            None => {
+                let _ = run("nft", &["delete", "table", "inet", KILL_SWITCH_TABLE]);
+                Ok(())
+            }
+        }
+    }
+
     fn recover(&self) {
+        let _ = run("nft", &["delete", "table", "inet", KILL_SWITCH_TABLE]);
         for path in state_files(&self.state_dir) {
             if let Ok(data) = fs::read(&path)
                 && let Ok(saved) = serde_json::from_slice::<Saved>(&data)

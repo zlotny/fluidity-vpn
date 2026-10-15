@@ -112,6 +112,26 @@ impl ksni::Tray for Tray {
             );
             menu.push(MenuItem::Separator);
         }
+        if self.snapshot.blocked {
+            menu.push(
+                StandardItem {
+                    label: "Internet Traffic Blocked".into(),
+                    icon_name: "dialog-warning-symbolic".into(),
+                    enabled: false,
+                    ..Default::default()
+                }
+                .into(),
+            );
+            menu.push(
+                StandardItem {
+                    label: "Allow Internet Traffic".into(),
+                    activate: Box::new(|t: &mut Tray| t.send(TrayAction::Unblock)),
+                    ..Default::default()
+                }
+                .into(),
+            );
+            menu.push(MenuItem::Separator);
+        }
         if self.snapshot.nodes.is_empty() {
             menu.push(
                 StandardItem {

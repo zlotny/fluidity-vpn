@@ -110,6 +110,14 @@ struct StatusGrid: View {
                 row("Interface", s.interface)
                 LabeledContent("Received", value: Format.bytes(Double(s.bytesIn)))
                 LabeledContent("Sent", value: Format.bytes(Double(s.bytesOut)))
+                if s.killSwitch == true {
+                    LabeledContent("Kill switch", value: "On")
+                }
+                if s.state == .connected {
+                    Section("Connection check") {
+                        ConnectionCheckView(server: s.remoteAddress)
+                    }
+                }
             } else {
                 Text("Not connected").foregroundStyle(.secondary)
             }
@@ -278,3 +286,96 @@ struct LogPane: View {
         try? text(manager.logs[id] ?? []).write(to: url, atomically: true, encoding: .utf8)
     }
 }
+
+struct ConnectionCheckView: View {
+    let server: String
+    @State private var result: ConnectionCheck.Result?
+    @State private var running = false
+
+    var body: some View {
+        if let r = result {
+            LabeledContent("Public IP", value: r.ip ?? "Unavailable")
+            if let location = r.location { LabeledContent("Location", value: location) }
+            if let org = r.organization { LabeledContent("Network", value: org) }
+            LabeledContent("Server latency", value: r.latency.map { String(format: $0 < 10 ? "%.1f ms" : "%.0f ms", $0) } ?? "No reply")
+        }
+        HStack {
+            Text(result == nil ? "See the address websites see, and the latency to the server." : "Checked \(result!.time.formatted(date: .omitted, time: .shortened))")
+                .foregroundStyle(.secondary)
+                .font(.callout)
+            Spacer()
+            if running { ProgressView().controlSize(.small) }
+            Button(result == nil ? "Check" : "Check Again") {
+                running = true
+                Task {
+                    result = await ConnectionCheck.run(server: server)
+                    running = false
+                }
+            }
+            .disabled(running)
+        }
+    }
+}
+
+enum ConnectionCheck {
+    struct Result {
+        var ip: String?
+        var location: String?
+        var organization: String?
+        var latency: Double?
+        var time = Date()
+    }
+
+    private struct Info: Decodable {
+        var ip: String?
+        var city: String?
+        var region: String?
+        var country: String?
+        var org: String?
+    }
+
+    static func run(server: String) async -> Result {
+        async let info = publicInfo()
+        async let latency = ping(server)
+        let i = await info
+        let place = [i?.city, i?.region, i?.country].compactMap { $0 }.filter { !$0.isEmpty }
+        return Result(
+            ip: i?.ip,
+            location: place.isEmpty ? nil : place.joined(separator: ", "),
+            organization: i?.org,
+            latency: await latency)
+    }
+
+    private static func publicInfo() async -> Info? {
+        guard let url = URL(string: "https://ipinfo.io/json") else { return nil }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let session = URLSession(configuration: .ephemeral)
+        guard let (data, _) = try? await session.data(for: request) else { return nil }
+        return try? JSONDecoder().decode(Info.self, from: data)
+    }
+
+    static func ping(_ host: String) async -> Double? {
+        guard !host.isEmpty else { return nil }
+        return await Task.detached {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/sbin/ping")
+            process.arguments = ["-c", "3", "-i", "0.2", "-t", "4", "-q", host]
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = FileHandle.nullDevice
+            guard (try? process.run()) != nil else { return nil }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            return parsePing(String(decoding: data, as: UTF8.self))
+        }.value
+    }
+
+    static func parsePing(_ output: String) -> Double? {
+        guard let line = output.split(separator: "\n").first(where: { $0.contains("min/avg/max") }),
+              let values = line.split(separator: "=").last?.trimmingCharacters(in: .whitespaces).split(separator: "/"),
+              values.count >= 2 else { return nil }
+        return Double(values[1])
+    }
+}
+

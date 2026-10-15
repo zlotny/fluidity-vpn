@@ -1,4 +1,5 @@
 mod daemon;
+mod killswitch;
 mod net;
 mod netconfig;
 mod obfs;

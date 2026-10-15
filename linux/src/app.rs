@@ -23,6 +23,7 @@ pub struct App {
     pub logs: RefCell<HashMap<String, Vec<LogEntry>>>,
     pub traffic: RefCell<HashMap<String, Vec<TrafficSample>>>,
     pub daemon: Cell<bool>,
+    pub blocked: RefCell<Vec<String>>,
     pub versions: RefCell<Vec<String>>,
     backend: async_channel::Sender<Command>,
     window: RefCell<Option<Rc<Window>>>,
@@ -53,6 +54,7 @@ impl App {
             logs: RefCell::default(),
             traffic: RefCell::default(),
             daemon: Cell::new(false),
+            blocked: RefCell::default(),
             versions: RefCell::default(),
             backend,
             window: RefCell::default(),
@@ -164,6 +166,15 @@ impl App {
         self.update_tray();
     }
 
+    fn set_blocked(&self, ids: Vec<String>) {
+        *self.blocked.borrow_mut() = ids;
+        self.refresh_sessions();
+    }
+
+    pub fn unblock(&self) {
+        self.send(Command::Unblock(None));
+    }
+
     fn refresh_sessions(&self) {
         if let Some(w) = self.existing_window() {
             w.refresh();
@@ -217,6 +228,7 @@ impl App {
             nodes: nodes(self, &self.tree.borrow()),
             stats,
             daemon: self.daemon.get(),
+            blocked: !self.blocked.borrow().is_empty(),
             icon: prefs.icon_set.clone(),
             items: crate::scripts::menu_items(self.store.root()),
         };
@@ -264,6 +276,7 @@ impl App {
                 }
             }
             Message::Versions(list) => *self.versions.borrow_mut() = list,
+            Message::Blocked(ids) => self.set_blocked(ids),
             Message::Error(e) => self.error(&e),
             Message::Tray(action) => self.tray_action(action),
         }
@@ -279,6 +292,7 @@ impl App {
             TrayAction::Import => self.window().import(),
             TrayAction::Quit => self.gtk.quit(),
             TrayAction::RunItem(path) => self.run_menu_item(path),
+            TrayAction::Unblock => self.send(Command::Unblock(None)),
         }
     }
 
@@ -294,6 +308,16 @@ impl App {
                 self.traffic.borrow_mut().remove(&id);
                 prompt::dismiss(self, &id);
                 self.refresh_sessions();
+            }
+            Event::Blocked { ids } => {
+                let fresh = ids.iter().find(|id| !self.blocked.borrow().contains(id)).cloned();
+                if let Some(connection) = fresh.and_then(|id| self.connection(&id)) {
+                    self.notify(
+                        &connection.name,
+                        "Connection lost. The kill switch is blocking internet traffic.",
+                    );
+                }
+                self.set_blocked(ids);
             }
             Event::Prompt { id, prompt } => self.answer(&id, prompt),
             Event::PromptDone { id } => prompt::dismiss(self, &id),
@@ -477,6 +501,8 @@ impl App {
                     openvpn_version: connection.openvpn_version.clone().or(prefs.openvpn_version),
                     auto_reconnect: connection.auto_reconnect,
                     block_ipv6: prefs.block_ipv6,
+                    kill_switch: prefs.kill_switch,
+                    kill_switch_allow_lan: prefs.kill_switch_allow_lan,
                     disable_time_machine: false,
                 },
             });

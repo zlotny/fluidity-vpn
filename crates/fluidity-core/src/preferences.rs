@@ -47,6 +47,8 @@ pub struct Preferences {
     pub details_always_on_top: bool,
     pub reset_interfaces_on_disconnect: bool,
     pub block_ipv6: bool,
+    pub kill_switch: bool,
+    pub kill_switch_allow_lan: bool,
     pub openvpn_version: Option<String>,
 }
 
@@ -69,6 +71,8 @@ impl Default for Preferences {
             details_always_on_top: false,
             reset_interfaces_on_disconnect: false,
             block_ipv6: true,
+            kill_switch: false,
+            kill_switch_allow_lan: true,
             openvpn_version: None,
         }
     }

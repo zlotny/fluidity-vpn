@@ -123,6 +123,11 @@ impl Builder {
             let _ = menu.append(&disabled("Fluidity service is not running"));
             let _ = menu.append(&separator());
         }
+        if snapshot.blocked {
+            let _ = menu.append(&disabled("Internet Traffic Blocked"));
+            let _ = menu.append(&self.item("Allow Internet Traffic", TrayAction::Unblock));
+            let _ = menu.append(&separator());
+        }
         if snapshot.nodes.is_empty() {
             let _ = menu.append(&disabled("No Connections"));
         } else {

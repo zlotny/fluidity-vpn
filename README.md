@@ -22,6 +22,7 @@ Fluidity sits in your menu bar or system tray and manages all your OpenVPN conne
 - Menu bar app on macOS, tray app on Windows and Linux, with a main window for details.
 - Folders, drag and drop ordering, connect all, disconnect all.
 - Live status, traffic statistics, traffic graphs and the OpenVPN log per connection.
+- A connection check that shows your public IP, its location and the latency to the server (macOS).
 - Notifications when connections go up or down.
 
 **Editing and import**
@@ -35,6 +36,7 @@ Fluidity sits in your menu bar or system tray and manages all your OpenVPN conne
 - Certificates from files, PKCS#12, PKCS#11 smart cards and tokens, and macOS Keychain identities.
 
 **Networking**
+- Kill switch: blocks internet traffic outside the VPN, and keeps it blocked if the connection drops. Local network access is optional.
 - Full and split DNS, with automatic restore after a crash.
 - Proxy settings pushed to the system while connected (macOS).
 - IPv6 leak blocking when the tunnel has no IPv6.

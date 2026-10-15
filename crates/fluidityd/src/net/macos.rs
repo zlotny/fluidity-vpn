@@ -14,10 +14,14 @@ use serde::{Deserialize, Serialize};
 use system_configuration::dynamic_store::{SCDynamicStore, SCDynamicStoreBuilder};
 
 use super::{Backend, run, run_with_input, state_file, state_files};
+use crate::killswitch::{Rules, pf_rules};
 use crate::netconfig::{NetConfig, ResolvedDns};
+
+const KILL_SWITCH_ANCHOR: &str = "com.apple/fluidity-killswitch";
 
 pub struct MacBackend {
     state_dir: PathBuf,
+    kill_switch_token: std::sync::Mutex<Option<String>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -74,6 +78,18 @@ fn primary_service(store: &SCDynamicStore) -> Option<String> {
     value.downcast::<CFString>().map(|s| s.to_string())
 }
 
+fn enable_pf() -> Result<Option<String>, String> {
+    let output = std::process::Command::new("/sbin/pfctl")
+        .arg("-E")
+        .output()
+        .map_err(|e| format!("pfctl: {e}"))?;
+    let text = String::from_utf8_lossy(&output.stderr);
+    Ok(text
+        .lines()
+        .find_map(|l| l.strip_prefix("Token : "))
+        .map(|t| t.trim().to_string()))
+}
+
 fn safe_id(id: &str) -> String {
     id.chars()
         .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' })
@@ -84,6 +100,7 @@ impl MacBackend {
     pub fn new(state_dir: &Path) -> Self {
         Self {
             state_dir: state_dir.to_path_buf(),
+            kill_switch_token: std::sync::Mutex::new(None),
         }
     }
 
@@ -187,15 +204,7 @@ impl MacBackend {
                      block drop in quick inet6 from !fe80::/10 to any\n";
         run_with_input("/sbin/pfctl", &["-a", &anchor, "-f", "-"], rules)?;
         saved.pf_anchor = Some(anchor);
-        let output = std::process::Command::new("/sbin/pfctl")
-            .arg("-E")
-            .output()
-            .map_err(|e| format!("pfctl: {e}"))?;
-        let text = String::from_utf8_lossy(&output.stderr);
-        saved.pf_token = text
-            .lines()
-            .find_map(|l| l.strip_prefix("Token : "))
-            .map(|t| t.trim().to_string());
+        saved.pf_token = enable_pf()?;
         Ok(())
     }
 
@@ -268,6 +277,7 @@ impl Backend for MacBackend {
     }
 
     fn recover(&self) {
+        let _ = run("/sbin/pfctl", &["-a", KILL_SWITCH_ANCHOR, "-F", "all"]);
         if let Err(err) = self.resume_time_machine() {
             tracing::warn!("Time Machine: {err}");
         }
@@ -278,6 +288,26 @@ impl Backend for MacBackend {
                 Self::undo(&saved);
             }
             let _ = fs::remove_file(path);
+        }
+    }
+
+    fn kill_switch(&self, rules: Option<&Rules>) -> Result<(), String> {
+        let mut token = self.kill_switch_token.lock().unwrap_or_else(|e| e.into_inner());
+        match rules {
+            Some(rules) => {
+                run_with_input("/sbin/pfctl", &["-a", KILL_SWITCH_ANCHOR, "-f", "-"], &pf_rules(rules))?;
+                if token.is_none() {
+                    *token = enable_pf()?;
+                }
+                Ok(())
+            }
+            None => {
+                let _ = run("/sbin/pfctl", &["-a", KILL_SWITCH_ANCHOR, "-F", "all"]);
+                if let Some(t) = token.take() {
+                    let _ = run("/sbin/pfctl", &["-X", &t]);
+                }
+                Ok(())
+            }
         }
     }
 

@@ -21,6 +21,10 @@ pub struct ConnectOptions {
     pub block_ipv6: bool,
     #[serde(default)]
     pub disable_time_machine: bool,
+    #[serde(default)]
+    pub kill_switch: bool,
+    #[serde(default)]
+    pub kill_switch_allow_lan: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,6 +57,11 @@ pub enum Request {
         settings: SystemSettings,
     },
     Versions,
+    Blocked,
+    Unblock {
+        #[serde(default)]
+        id: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -176,6 +185,8 @@ pub struct SessionInfo {
     pub bytes_out: u64,
     pub connected_since: Option<u64>,
     pub last_error: Option<String>,
+    #[serde(default)]
+    pub kill_switch: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -198,6 +209,7 @@ pub enum Event {
     Prompt { id: String, prompt: Prompt },
     PromptDone { id: String },
     Log { id: String, entry: LogEntry },
+    Blocked { ids: Vec<String> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -207,6 +219,7 @@ pub enum Payload {
     Log(Vec<LogEntry>),
     Settings(SystemSettings),
     Versions(Vec<String>),
+    Blocked(Vec<String>),
     Hello { version: u32, daemon: String },
     Empty {},
 }

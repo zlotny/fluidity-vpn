@@ -35,6 +35,8 @@ enum Commands {
         #[arg(long)]
         all: bool,
     },
+    #[command(about = "Allow internet traffic that the kill switch blocks")]
+    Unblock { name: Option<String> },
     #[command(about = "Connect every connection")]
     ConnectAll,
     #[command(about = "Disconnect every connection")]
@@ -210,6 +212,9 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
                         s.interface, s.local_ipv4, s.local_ipv6
                     );
                     println!("  Server: {}:{}", s.remote_address, s.remote_port);
+                    if s.kill_switch {
+                        println!("  Kill switch: on");
+                    }
                     println!(
                         "  Traffic: in {}  out {}",
                         human_bytes(s.bytes_in),
@@ -218,6 +223,14 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
                 }
                 if let Some(err) = s.last_error {
                     println!("  Error: {err}");
+                }
+            }
+            if let Ok(fluidity_ipc::Payload::Blocked(ids)) = client.request(Request::Blocked).await {
+                for id in ids {
+                    let name = store.find(&id).map(|c| c.name).unwrap_or(id);
+                    println!(
+                        "Kill switch: internet blocked since {name} dropped. Run \"fluidity unblock\" to allow it."
+                    );
                 }
             }
         }
@@ -354,6 +367,17 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
                 println!("{name}");
             }
         }
+        Commands::Unblock { name } => {
+            let id = match name {
+                Some(name) => Some(store.find(&name).map_err(|e| e.to_string())?.id),
+                None => None,
+            };
+            let (client, _) = daemon().await?;
+            client
+                .request(Request::Unblock { id })
+                .await
+                .map_err(|e| e.to_string())?;
+        }
         Commands::Versions => {
             let (client, _) = daemon().await?;
             if let fluidity_ipc::Payload::Versions(v) =
@@ -430,6 +454,8 @@ async fn connect(store: &Store, conn: fluidity_core::Connection, wait: bool, sav
                 openvpn_version: prefs.openvpn_version.clone(),
                 auto_reconnect: conn.settings.auto_reconnect && !wait,
                 block_ipv6: prefs.block_ipv6,
+                kill_switch: prefs.kill_switch,
+                kill_switch_allow_lan: prefs.kill_switch_allow_lan,
                 disable_time_machine: prefs.disable_time_machine,
             },
         })

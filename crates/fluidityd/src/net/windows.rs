@@ -4,11 +4,13 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use super::{Backend, run, state_file, state_files};
+use crate::killswitch::{Rules, parse_profile_actions, windows_release_script, windows_script};
 use crate::netconfig::{NetConfig, ResolvedDns};
 
 const NRPT: &str = r"HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\DnsPolicyConfig";
 const TCPIP: &str = r"HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters";
 const BLOCKED_V6: &str = "2000::/3,fc00::/7";
+const KILL_SWITCH_GROUP: &str = "Fluidity Kill Switch";
 
 pub struct WindowsBackend {
     state_dir: PathBuf,
@@ -61,6 +63,20 @@ pub fn merged_search_list(original: &str, domains: &[String]) -> String {
         }
     }
     list.join(",")
+}
+
+fn powershell(script: &str) -> Result<String, String> {
+    run(
+        "powershell.exe",
+        &[
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+        ],
+    )
 }
 
 fn reg_add(key: &str, name: &str, kind: &str, data: &str) -> Result<(), String> {
@@ -127,6 +143,15 @@ impl WindowsBackend {
         .map(|_| ())
     }
 
+    fn release_kill_switch(&self) {
+        let saved_path = self.state_dir.join("killswitch.json");
+        let Ok(data) = fs::read(&saved_path) else { return };
+        let actions: Vec<(String, String)> = serde_json::from_slice(&data).unwrap_or_default();
+        if powershell(&windows_release_script(KILL_SWITCH_GROUP, &actions)).is_ok() {
+            let _ = fs::remove_file(saved_path);
+        }
+    }
+
     fn persist(&self, id: &str, saved: &Saved) {
         let _ = fs::create_dir_all(&self.state_dir);
         if let Ok(json) = serde_json::to_vec(saved) {
@@ -180,7 +205,30 @@ impl Backend for WindowsBackend {
         let _ = fs::remove_file(path);
     }
 
+    fn kill_switch(&self, rules: Option<&Rules>) -> Result<(), String> {
+        let saved_path = self.state_dir.join("killswitch.json");
+        match rules {
+            Some(rules) => {
+                if !saved_path.exists() {
+                    let output = powershell(
+                        "Get-NetFirewallProfile | ForEach-Object { \"$($_.Name)=$($_.DefaultOutboundAction)\" }",
+                    )?;
+                    let actions = parse_profile_actions(&output);
+                    let _ = fs::create_dir_all(&self.state_dir);
+                    fs::write(&saved_path, serde_json::to_vec(&actions).map_err(|e| e.to_string())?)
+                        .map_err(|e| e.to_string())?;
+                }
+                powershell(&windows_script(rules, KILL_SWITCH_GROUP)).map(|_| ())
+            }
+            None => {
+                self.release_kill_switch();
+                Ok(())
+            }
+        }
+    }
+
     fn recover(&self) {
+        self.release_kill_switch();
         for path in state_files(&self.state_dir) {
             if let Ok(data) = fs::read(&path)
                 && let Ok(saved) = serde_json::from_slice::<Saved>(&data)

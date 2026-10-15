@@ -22,7 +22,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         item.menu = menu
         item.button?.toolTip = "Fluidity"
         manager.$sessions
-            .combineLatest(manager.$preferences.map(\.iconSet).removeDuplicates())
+            .combineLatest(manager.$preferences.map(\.iconSet).removeDuplicates(), manager.$blocked)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.refreshIcon() }
             .store(in: &cancellables)
@@ -33,7 +33,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     private func refreshIcon() {
         let state = manager.overallState
-        let hasError = manager.sessions.values.contains { $0.state == .error }
+        let hasError = manager.sessions.values.contains { $0.state == .error } || !manager.blocked.isEmpty
         let shown: SessionState = state == .disconnected && hasError ? .error : state
         if state == .connecting {
             if animation == nil {
@@ -47,7 +47,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             animation = nil
             item.button?.image = StatusIcon.image(set: iconSet, state: shown)
         }
-        let names = manager.activeSessions.map { "\($0.name): \($0.state.label)" }
+        var names = manager.activeSessions.map { "\($0.name): \($0.state.label)" }
+        if !manager.blocked.isEmpty { names.append("Kill switch: internet traffic blocked") }
         item.button?.toolTip = names.isEmpty ? "Fluidity: Not connected" : names.joined(separator: "\n")
     }
 
@@ -95,6 +96,22 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             warn.isEnabled = false
             menu.addItem(warn)
             menu.addItem(action("Install Helper…", #selector(installHelper)))
+            menu.addItem(.separator())
+        }
+        if !manager.blocked.isEmpty {
+            let warn = NSMenuItem(title: "Internet Traffic Blocked", action: nil, keyEquivalent: "")
+            warn.isEnabled = false
+            warn.image = NSImage(systemSymbolName: "exclamationmark.shield", accessibilityDescription: nil)
+            menu.addItem(warn)
+            let names = manager.blocked.compactMap { manager.connections[$0]?.name }
+            if !names.isEmpty {
+                let reconnect = action("Reconnect \(names.joined(separator: ", "))", #selector(reconnectBlocked))
+                reconnect.indentationLevel = 1
+                menu.addItem(reconnect)
+            }
+            let allow = action("Allow Internet Traffic", #selector(unblock))
+            allow.indentationLevel = 1
+            menu.addItem(allow)
             menu.addItem(.separator())
         }
         if manager.connections.isEmpty {
@@ -281,6 +298,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func disconnectAll() { manager.disconnectAll() }
+    @objc private func reconnectBlocked() { for id in manager.blocked { manager.connect(id) } }
+    @objc private func unblock() { manager.unblock() }
     @objc private func connectAll() { manager.connectAll() }
     @objc private func showDetails() { WindowManager.shared.showDetails(manager.activeSessions.first?.id) }
     @objc private func showPreferences() { WindowManager.shared.showPreferences() }

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use crate::killswitch::Rules;
 use crate::netconfig::NetConfig;
 
 #[cfg(target_os = "linux")]
@@ -21,6 +22,9 @@ pub trait Backend: Send + Sync {
     }
     fn resume_time_machine(&self) -> Result<(), String> {
         Ok(())
+    }
+    fn kill_switch(&self, _rules: Option<&Rules>) -> Result<(), String> {
+        Err("the kill switch is not supported on this system".into())
     }
 }
 

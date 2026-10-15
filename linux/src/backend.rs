@@ -18,6 +18,7 @@ pub enum Command {
     },
     Log(String),
     Versions,
+    Unblock(Option<String>),
     Tray(TraySnapshot),
 }
 
@@ -27,6 +28,7 @@ pub enum Message {
     Event(Box<Event>),
     Log(String, Vec<LogEntry>),
     Versions(Vec<String>),
+    Blocked(Vec<String>),
     Error(String),
     Tray(TrayAction),
 }
@@ -81,6 +83,9 @@ async fn run(ui: async_channel::Sender<Message>, commands: async_channel::Receiv
         if let Ok(sessions) = client.sessions().await {
             let _ = ui.send(Message::Sessions(sessions)).await;
         }
+        if let Ok(Payload::Blocked(ids)) = client.request(Request::Blocked).await {
+            let _ = ui.send(Message::Blocked(ids)).await;
+        }
         loop {
             tokio::select! {
                 event = events.recv() => match event {
@@ -114,6 +119,7 @@ async fn execute(client: &Client, ui: &async_channel::Sender<Message>, command: 
         Command::Connect { id, bundle, options } => Request::Connect { id, bundle, options },
         Command::Disconnect(id) => Request::Disconnect { id },
         Command::DisconnectAll => Request::DisconnectAll,
+        Command::Unblock(id) => Request::Unblock { id },
         Command::Reply { id, reply } => return client.reply(&id, reply).await.map_err(|e| e.to_string()),
         Command::Log(id) => {
             let entries = client.log(&id).await.map_err(|e| e.to_string())?;

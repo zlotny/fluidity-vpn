@@ -3,7 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum PreferencesTab: String, CaseIterable, Identifiable {
-    case connections, general, appearance, advanced, about
+    case connections, general, security, appearance, advanced, about
     var id: String { rawValue }
 
     var title: String { rawValue.capitalized }
@@ -12,6 +12,7 @@ enum PreferencesTab: String, CaseIterable, Identifiable {
         switch self {
         case .connections: return "network"
         case .general: return "gearshape"
+        case .security: return "lock.shield"
         case .appearance: return "paintbrush"
         case .advanced: return "slider.horizontal.3"
         case .about: return "info.circle"
@@ -44,6 +45,7 @@ struct PreferencesView: View {
         switch tab {
         case .connections: ConnectionsPane(state: state)
         case .general: GeneralPane()
+        case .security: SecurityPane()
         case .appearance: AppearancePane()
         case .advanced: AdvancedPane()
         case .about: AboutPane()
@@ -482,6 +484,41 @@ struct FolderDetail: View {
     }
 }
 
+struct SecurityPane: View {
+    @EnvironmentObject var manager: ConnectionManager
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(isOn: pref(\.killSwitch)) {
+                    Text("Kill switch")
+                    Text("Block internet traffic outside the VPN while connected, and keep it blocked if the connection drops.")
+                }
+                Toggle("Allow local network access", isOn: pref(\.killSwitchAllowLan))
+                    .disabled(!manager.preferences.killSwitch)
+            }
+            if !manager.blocked.isEmpty {
+                Section {
+                    LabeledContent("Internet traffic is blocked") {
+                        Button("Allow Traffic") { manager.unblock() }
+                    }
+                }
+            }
+            Section("Leak protection") {
+                Toggle("Block IPv6 traffic when the VPN has no IPv6", isOn: pref(\.blockIpv6))
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func pref(_ path: WritableKeyPath<Preferences, Bool>) -> Binding<Bool> {
+        Binding(get: { manager.preferences[keyPath: path] }, set: { value in
+            manager.preferences[keyPath: path] = value
+            manager.savePreferences()
+        })
+    }
+}
+
 struct GeneralPane: View {
     @EnvironmentObject var manager: ConnectionManager
 
@@ -500,7 +537,6 @@ struct GeneralPane: View {
                 }
             }
             Section("While connected") {
-                Toggle("Block IPv6 traffic when the VPN has no IPv6", isOn: pref(\.blockIpv6))
                 Toggle("Pause Time Machine backups", isOn: pref(\.disableTimeMachine))
             }
             Section("Updates") {

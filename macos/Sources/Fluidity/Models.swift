@@ -88,6 +88,7 @@ struct SessionInfo: Codable, Equatable {
     var bytesOut: UInt64
     var connectedSince: UInt64?
     var lastError: String?
+    var killSwitch: Bool?
 }
 
 struct ChoiceOption: Codable, Equatable, Hashable {
@@ -248,6 +249,8 @@ struct ConnectOptions: Codable {
     var autoReconnect: Bool
     var blockIpv6: Bool
     var disableTimeMachine: Bool
+    var killSwitch: Bool
+    var killSwitchAllowLan: Bool
 }
 
 struct SystemSettings: Codable {
@@ -271,6 +274,8 @@ struct Preferences: Codable, Equatable {
     var detailsAlwaysOnTop = false
     var resetInterfacesOnDisconnect = false
     var blockIpv6 = true
+    var killSwitch = false
+    var killSwitchAllowLan = true
     var openvpnVersion: String?
 }
 

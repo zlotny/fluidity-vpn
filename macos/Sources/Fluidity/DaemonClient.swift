@@ -7,6 +7,7 @@ enum DaemonEvent {
     case prompt(String, Prompt)
     case promptDone(String)
     case log(String, LogEntry)
+    case blocked([String])
 }
 
 private struct EventEnvelope: Decodable {
@@ -15,6 +16,7 @@ private struct EventEnvelope: Decodable {
     let id: String?
     let prompt: Prompt?
     let entry: LogEntry?
+    let ids: [String]?
 }
 
 private struct ResponseEnvelope: Decodable {
@@ -30,6 +32,8 @@ private struct SessionsPayload: Decodable { let sessions: [SessionInfo] }
 private struct LogPayload: Decodable { let log: [LogEntry] }
 private struct VersionsPayload: Decodable { let versions: [String] }
 private struct SettingsPayload: Decodable { let settings: SystemSettings }
+private struct BlockedPayload: Decodable { let blocked: [String] }
+private struct UnblockParams: Encodable { let id: String? }
 
 private struct Request<P: Encodable>: Encodable {
     let seq: UInt64
@@ -149,6 +153,7 @@ final class DaemonClient: @unchecked Sendable {
         case "prompt_done": parsed = event.id.map { .promptDone($0) }
         case "log":
             if let id = event.id, let entry = event.entry { parsed = .log(id, entry) } else { parsed = nil }
+        case "blocked": parsed = event.ids.map { .blocked($0) }
         default: parsed = nil
         }
         if let parsed {
@@ -227,6 +232,15 @@ final class DaemonClient: @unchecked Sendable {
 
     func disconnectAll() async throws {
         _ = try await request("disconnect_all", Optional<Empty>.none)
+    }
+
+    func blocked() async throws -> [String] {
+        let data = try await request("blocked", Optional<Empty>.none)
+        return try Core.decoder.decode(OkEnvelope<BlockedPayload>.self, from: data).ok.blocked
+    }
+
+    func unblock(id: String?) async throws {
+        _ = try await request("unblock", UnblockParams(id: id))
     }
 
     func reply(id: String, reply: Reply) async throws {

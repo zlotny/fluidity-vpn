@@ -1,10 +1,11 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use fluidity_ipc::{Event, LogEntry, Prompt, Reply, SessionInfo, SystemSettings};
 use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
 
+use crate::killswitch::{Lock, Rules};
 use crate::net::Backend;
 
 pub const LOG_LIMIT: usize = 5000;
@@ -61,6 +62,7 @@ pub struct Daemon {
     pub events: broadcast::Sender<(u32, Event)>,
     pub settings: RwLock<SystemSettings>,
     pub time_machine_holds: Mutex<usize>,
+    pub kill_switch: Mutex<BTreeMap<String, Lock>>,
     pub gui_version: String,
     pub generation: std::sync::atomic::AtomicU64,
 }
@@ -78,6 +80,7 @@ impl Daemon {
             events: broadcast::channel(4096).0,
             settings: RwLock::new(settings),
             time_machine_holds: Mutex::new(0),
+            kill_switch: Mutex::default(),
             gui_version: format!("Fluidity_{}", env!("CARGO_PKG_VERSION")),
             generation: std::sync::atomic::AtomicU64::new(1),
         })
@@ -159,4 +162,89 @@ impl Daemon {
             tracing::warn!("Time Machine: {err}");
         }
     }
+
+    pub async fn engage_kill_switch(&self, id: &str, lock: Lock) -> Result<(), String> {
+        let mut locks = self.kill_switch.lock().await;
+        let owner = lock.owner;
+        locks.insert(id.to_string(), lock);
+        let result = self.apply_kill_switch(&locks);
+        self.announce_blocked(&locks, owner);
+        result
+    }
+
+    pub async fn kill_switch_connected(&self, id: &str, connected: bool) {
+        let mut locks = self.kill_switch.lock().await;
+        if let Some(lock) = locks.get_mut(id).filter(|l| l.connected != connected) {
+            lock.connected = connected;
+            if let Err(err) = self.apply_kill_switch(&locks) {
+                tracing::warn!("kill switch: {err}");
+            }
+        }
+    }
+
+    pub async fn orphan_kill_switch(&self, id: &str) {
+        let mut locks = self.kill_switch.lock().await;
+        let Some(lock) = locks.get_mut(id) else { return };
+        lock.orphaned = true;
+        lock.connected = false;
+        let owner = lock.owner;
+        if let Err(err) = self.apply_kill_switch(&locks) {
+            tracing::warn!("kill switch: {err}");
+        }
+        self.announce_blocked(&locks, owner);
+    }
+
+    pub async fn adopt_kill_switch(&self, id: &str) {
+        let mut locks = self.kill_switch.lock().await;
+        let Some(lock) = locks.get_mut(id) else { return };
+        lock.orphaned = false;
+        let owner = lock.owner;
+        self.announce_blocked(&locks, owner);
+    }
+
+    pub async fn release_kill_switch(&self, uid: u32, id: Option<&str>) {
+        let mut locks = self.kill_switch.lock().await;
+        let before = locks.len();
+        locks.retain(|key, lock| {
+            let owned = uid == crate::server::ROOT || lock.owner == uid;
+            let matches = match id {
+                Some(id) => key == id,
+                None => lock.orphaned,
+            };
+            !(owned && matches)
+        });
+        if locks.len() == before {
+            return;
+        }
+        if let Err(err) = self.apply_kill_switch(&locks) {
+            tracing::warn!("kill switch: {err}");
+        }
+        self.announce_blocked(&locks, uid);
+    }
+
+    pub async fn blocked(&self, uid: u32) -> Vec<String> {
+        let locks = self.kill_switch.lock().await;
+        blocked_ids(&locks, uid)
+    }
+
+    fn apply_kill_switch(&self, locks: &BTreeMap<String, Lock>) -> Result<(), String> {
+        self.backend.kill_switch(Rules::from_locks(locks).as_ref())
+    }
+
+    fn announce_blocked(&self, locks: &BTreeMap<String, Lock>, uid: u32) {
+        let _ = self.events.send((
+            uid,
+            Event::Blocked {
+                ids: blocked_ids(locks, uid),
+            },
+        ));
+    }
+}
+
+fn blocked_ids(locks: &BTreeMap<String, Lock>, uid: u32) -> Vec<String> {
+    locks
+        .iter()
+        .filter(|(_, l)| l.orphaned && (uid == crate::server::ROOT || l.owner == uid))
+        .map(|(id, _)| id.clone())
+        .collect()
 }

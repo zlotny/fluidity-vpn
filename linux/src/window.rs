@@ -43,9 +43,10 @@ pub struct Window {
     content_stack: gtk::Stack,
     split: adw::NavigationSplitView,
     detail: Detail,
+    banner: adw::Banner,
 }
 
-const STATUS_ROWS: [(&str, &str); 9] = [
+const STATUS_ROWS: [(&str, &str); 10] = [
     ("state", "State"),
     ("duration", "Connected For"),
     ("ipv4", "IPv4 Address"),
@@ -55,6 +56,7 @@ const STATUS_ROWS: [(&str, &str); 9] = [
     ("interface", "Interface"),
     ("in", "Received"),
     ("out", "Sent"),
+    ("killswitch", "Kill Switch"),
 ];
 
 fn dot_class(state: SessionState) -> &'static str {
@@ -210,8 +212,22 @@ impl Window {
             .content(&content)
             .min_sidebar_width(220.0)
             .build();
+        let banner = adw::Banner::builder()
+            .title("The kill switch is blocking internet traffic")
+            .button_label("Allow Traffic")
+            .build();
+        let weak = Rc::downgrade(app);
+        banner.connect_button_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                app.unblock();
+            }
+        });
+        let layout = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        split.set_vexpand(true);
+        layout.append(&banner);
+        layout.append(&split);
         let toasts = adw::ToastOverlay::new();
-        toasts.set_child(Some(&split));
+        toasts.set_child(Some(&layout));
         win.set_content(Some(&toasts));
 
         let breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::parse("max-width: 600sp").expect("condition"));
@@ -228,6 +244,7 @@ impl Window {
             content_stack,
             split,
             detail,
+            banner,
         });
         window.wire(app);
         window.rebuild();
@@ -607,6 +624,7 @@ impl Window {
 
     pub fn refresh(&self) {
         let app = self.app();
+        self.banner.set_revealed(!app.blocked.borrow().is_empty());
         for (id, row) in self.rows.borrow().iter() {
             let sessions = app.sessions.borrow();
             let session = sessions.get(id);
@@ -718,6 +736,14 @@ impl Window {
                 session
                     .map(|s| state::bytes(s.bytes_out as f64))
                     .unwrap_or_else(|| "–".into()),
+            ),
+            (
+                "killswitch",
+                match session {
+                    Some(s) if s.kill_switch => "On".to_string(),
+                    Some(_) => "Off".to_string(),
+                    None => "–".to_string(),
+                },
             ),
         ];
         for (key, value) in values {

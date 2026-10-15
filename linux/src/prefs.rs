@@ -159,15 +159,39 @@ pub fn open(app: &Rc<App>) {
     ));
     general.add(&reconnect);
 
-    let connected = adw::PreferencesGroup::builder().title("While Connected").build();
-    connected.add(&switch(
+    dialog.add(&general);
+
+    let security = adw::PreferencesPage::builder()
+        .title("Security")
+        .icon_name("security-high-symbolic")
+        .build();
+    let kill = adw::PreferencesGroup::new();
+    let kill_switch = switch(app, "Kill Switch", |p| p.kill_switch, |p, v| p.kill_switch = v);
+    kill_switch.set_subtitle(
+        "Block internet traffic outside the VPN while connected, and keep it blocked if the connection drops.",
+    );
+    let lan = switch(
+        app,
+        "Allow Local Network Access",
+        |p| p.kill_switch_allow_lan,
+        |p, v| p.kill_switch_allow_lan = v,
+    );
+    kill_switch
+        .bind_property("active", &lan, "sensitive")
+        .sync_create()
+        .build();
+    kill.add(&kill_switch);
+    kill.add(&lan);
+    security.add(&kill);
+    let leaks = adw::PreferencesGroup::builder().title("Leak Protection").build();
+    leaks.add(&switch(
         app,
         "Block IPv6 When the VPN Has No IPv6",
         |p| p.block_ipv6,
         |p, v| p.block_ipv6 = v,
     ));
-    general.add(&connected);
-    dialog.add(&general);
+    security.add(&leaks);
+    dialog.add(&security);
 
     let appearance = adw::PreferencesPage::builder()
         .title("Appearance")

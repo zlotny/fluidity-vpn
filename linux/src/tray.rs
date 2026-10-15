@@ -17,6 +17,7 @@ pub enum TrayAction {
     Show,
     Preferences,
     RunItem(String),
+    Unblock,
     Import,
     Quit,
 }
@@ -39,6 +40,7 @@ pub struct TraySnapshot {
     pub nodes: Vec<TrayNode>,
     pub stats: Vec<String>,
     pub daemon: bool,
+    pub blocked: bool,
     #[cfg_attr(windows, allow(dead_code))]
     pub icon: String,
     pub items: Vec<(String, String)>,

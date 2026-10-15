@@ -27,6 +27,7 @@ verb 3
 EOS
 }
 mkdir -p /work && cd /work
+export FLUIDITY_HOME=/work/home
 cp $pki/ca.crt $pki/client.crt $pki/client.key $pki/tc.key .
 client_conf "E2E" > e2e.ovpn
 { client_conf "Unsafe"; echo "up /bin/true"; } > unsafe.ovpn
@@ -79,6 +80,25 @@ for _ in $(seq 100); do fluidity status | grep -q 'No active' && break; sleep 0.
 check "HTTP proxy with authentication" "printf 'alice\nsecret\nbob\nhunter2\n' | timeout 60 fluidity connect Proxy 2>&1 | tee /tmp/proxy.log | grep -q '^Connected' && ping -c 2 -W 2 10.98.0.1 >/dev/null"
 check "proxy realm prompt" "grep -q 'Proxy HTTP Proxy username' /tmp/proxy.log"
 fluidity disconnect --all
+for _ in $(seq 100); do fluidity status | grep -q 'No active' && break; sleep 0.1; done
+
+gateway=$(ip route | awk '/^default/ {print $3; exit}')
+printf '{"kill_switch": true, "kill_switch_allow_lan": false}' > "$FLUIDITY_HOME/preferences.json"
+check "gateway reachable before kill switch" "ping -c 1 -W 2 $gateway >/dev/null"
+check "connect with kill switch" "printf 'alice\nsecret\n' | timeout 60 fluidity connect E2E"
+check "kill switch reported" "fluidity status | grep -q 'Kill switch: on'"
+check "kill switch keeps tunnel open" "ping -c 2 -W 2 10.99.0.1 >/dev/null"
+check "kill switch blocks traffic outside the tunnel" "! ping -c 1 -W 2 $gateway >/dev/null"
+pkill -KILL -f 'run/fluidity/' || true
+for _ in $(seq 100); do fluidity status | grep -q 'internet blocked' && break; sleep 0.1; done
+check "drop leaves internet blocked" "fluidity status | grep -q 'internet blocked since E2E dropped'"
+check "traffic stays blocked after drop" "! ping -c 1 -W 2 $gateway >/dev/null"
+check "unblock" "fluidity unblock && ! nft list table inet fluiditykillswitch >/dev/null 2>&1"
+check "traffic flows after unblock" "ping -c 1 -W 2 $gateway >/dev/null"
+check "connect with kill switch again" "printf 'alice\nsecret\n' | timeout 60 fluidity connect E2E"
+check "user disconnect releases kill switch" "fluidity disconnect E2E && for _ in \$(seq 50); do nft list table inet fluiditykillswitch >/dev/null 2>&1 || break; sleep 0.1; done; ! nft list table inet fluiditykillswitch >/dev/null 2>&1"
+check "traffic flows after disconnect" "ping -c 1 -W 2 $gateway >/dev/null"
+rm -f "$FLUIDITY_HOME/preferences.json"
 for _ in $(seq 100); do fluidity status | grep -q 'No active' && break; sleep 0.1; done
 
 check "export and reimport" "fluidity export E2E /tmp/e2e.fvpnz && fluidity import --replace /tmp/e2e.fvpnz | grep -q 'E2E'"

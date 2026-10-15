@@ -17,6 +17,7 @@ use tokio::process::{Child, Command as Process};
 use tokio::sync::mpsc;
 
 use crate::daemon::{Command, Daemon};
+use crate::killswitch;
 use crate::netconfig::{self, Inputs};
 use crate::obfs;
 use crate::openvpn;
@@ -137,6 +138,8 @@ struct Session {
     holds: usize,
     release_at: Option<tokio::time::Instant>,
     obfs: Option<obfs::Transport>,
+    kill_switch: bool,
+    stopped_by_user: bool,
 }
 
 pub fn spawn(daemon: Arc<Daemon>, spec: Spec, owner: u32, commands: mpsc::UnboundedReceiver<Command>) {
@@ -164,6 +167,8 @@ pub fn spawn(daemon: Arc<Daemon>, spec: Spec, owner: u32, commands: mpsc::Unboun
         holds: 0,
         release_at: None,
         obfs: None,
+        kill_switch: false,
+        stopped_by_user: false,
     };
     tokio::spawn(session.run());
 }
@@ -253,8 +258,12 @@ impl Session {
             let outcome = self.attempt().await;
             self.cleanup().await;
             match outcome {
-                Outcome::Stopped => break,
+                Outcome::Stopped => {
+                    self.stopped_by_user = true;
+                    break;
+                }
                 Outcome::AuthCancelled => {
+                    self.stopped_by_user = true;
                     self.info.last_error = Some("Authentication was cancelled".into());
                     break;
                 }
@@ -277,6 +286,7 @@ impl Session {
                     self.set_state(SessionState::Reconnecting, &format!("Retrying in {delay}s"))
                         .await;
                     if !self.wait_or_stop(Duration::from_secs(delay)).await {
+                        self.stopped_by_user = true;
                         break;
                     }
                 }
@@ -286,6 +296,21 @@ impl Session {
             self.info.state = SessionState::Disconnected;
         }
         self.info.connected_since = None;
+        if self.kill_switch {
+            if self.stopped_by_user {
+                self.daemon
+                    .release_kill_switch(self.info.owner_uid, Some(&self.spec.id))
+                    .await;
+                self.info.kill_switch = false;
+            } else {
+                self.daemon.orphan_kill_switch(&self.spec.id).await;
+                self.log(
+                    "warning",
+                    "Kill switch: internet traffic stays blocked until you reconnect or unblock",
+                )
+                .await;
+            }
+        }
         self.publish().await;
         let _ = std::fs::remove_dir_all(self.run_dir());
         self.daemon.remove(self.spec.generation, &self.spec.id).await;
@@ -613,9 +638,15 @@ impl Session {
                             self.daemon.hold_time_machine(true).await;
                             self.time_machine_held = true;
                         }
+                        if self.spec.options.kill_switch {
+                            self.engage_kill_switch().await;
+                        }
                     }
                     if state == SessionState::Reconnecting {
                         self.info.connected_since = None;
+                        if self.kill_switch {
+                            self.daemon.kill_switch_connected(&self.spec.id, false).await;
+                        }
                     }
                     self.publish().await;
                 }
@@ -839,6 +870,35 @@ impl Session {
             self.log("error", format!("Cannot send reply to OpenVPN: {err}")).await;
         }
         false
+    }
+
+    async fn engage_kill_switch(&mut self) {
+        let document = self.spec.document.clone();
+        let remote = self.info.remote_address.clone();
+        let servers = tokio::task::spawn_blocking(move || killswitch::remote_servers(&document, &remote))
+            .await
+            .unwrap_or_default();
+        let lock = killswitch::Lock {
+            owner: self.info.owner_uid,
+            interface: self.info.interface.clone(),
+            servers,
+            allow_lan: self.spec.options.kill_switch_allow_lan,
+            connected: true,
+            orphaned: false,
+        };
+        match self.daemon.engage_kill_switch(&self.spec.id, lock).await {
+            Ok(()) => {
+                if !self.kill_switch {
+                    self.log("info", "Kill switch on").await;
+                }
+                self.kill_switch = true;
+                self.info.kill_switch = true;
+            }
+            Err(err) => {
+                self.kill_switch = true;
+                self.log("error", format!("Kill switch: {err}")).await;
+            }
+        }
     }
 
     async fn updown(&mut self, direction: &str, env: &[(String, String)]) {

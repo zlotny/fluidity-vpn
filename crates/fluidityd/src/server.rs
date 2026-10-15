@@ -195,6 +195,11 @@ async fn handle(daemon: &Arc<Daemon>, uid: u32, request: Request) -> Result<Payl
                     },
                 );
             }
+            if options.kill_switch {
+                daemon.adopt_kill_switch(&id).await;
+            } else {
+                daemon.release_kill_switch(uid, Some(&id)).await;
+            }
             session::spawn(
                 daemon.clone(),
                 Spec {
@@ -248,6 +253,11 @@ async fn handle(daemon: &Arc<Daemon>, uid: u32, request: Request) -> Result<Payl
                 return Err("administrator rights are required".into());
             }
             daemon.save_settings(settings).await.map_err(|e| e.to_string())?;
+            Ok(Payload::Empty {})
+        }
+        Request::Blocked => Ok(Payload::Blocked(daemon.blocked(uid).await)),
+        Request::Unblock { id } => {
+            daemon.release_kill_switch(uid, id.as_deref()).await;
             Ok(Payload::Empty {})
         }
         Request::Versions => {

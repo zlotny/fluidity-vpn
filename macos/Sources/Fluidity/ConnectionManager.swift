@@ -19,6 +19,7 @@ final class ConnectionManager: ObservableObject {
     @Published private(set) var logs: [String: [LogEntry]] = [:]
     @Published private(set) var traffic: [String: [TrafficSample]] = [:]
     @Published private(set) var daemonAvailable = false
+    @Published private(set) var blocked: [String] = []
     @Published var preferences = Preferences()
     @Published var lastError: String?
 
@@ -112,6 +113,7 @@ final class ConnectionManager: ObservableObject {
             sessions = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
             for s in list { previousStates[s.id] = s.state }
         }
+        blocked = (try? await daemon.blocked()) ?? []
         if !didLaunchConnect {
             didLaunchConnect = true
             for c in orderedConnections where c.connectOnLaunch && sessions[c.id] == nil {
@@ -161,7 +163,9 @@ final class ConnectionManager: ObservableObject {
                 openvpnVersion: connection.openvpnVersion ?? preferences.openvpnVersion,
                 autoReconnect: connection.autoReconnect,
                 blockIpv6: preferences.blockIpv6,
-                disableTimeMachine: preferences.disableTimeMachine)
+                disableTimeMachine: preferences.disableTimeMachine,
+                killSwitch: preferences.killSwitch,
+                killSwitchAllowLan: preferences.killSwitchAllowLan)
             try await daemon.connect(id: connection.id, bundle: bundle, options: options)
         } catch {
             report(error, connection: connection)
@@ -175,6 +179,12 @@ final class ConnectionManager: ObservableObject {
         prompts.dismiss(id)
         Task {
             do { try await daemon.disconnect(id: id) } catch { lastError = error.localizedDescription }
+        }
+    }
+
+    func unblock(_ id: String? = nil) {
+        Task {
+            do { try await daemon.unblock(id: id) } catch { lastError = error.localizedDescription }
         }
     }
 
@@ -229,6 +239,12 @@ final class ConnectionManager: ObservableObject {
             answer(id, prompt)
         case .promptDone(let id):
             prompts.dismiss(id)
+        case .blocked(let ids):
+            if ids.count > blocked.count, let id = ids.first(where: { !blocked.contains($0) }),
+               let connection = connections[id] {
+                notify(title: connection.name, body: "Connection lost. The kill switch is blocking internet traffic.")
+            }
+            blocked = ids
         case .log(let id, let entry):
             var list = logs[id, default: []]
             list.append(entry)
