@@ -507,6 +507,7 @@ struct SecurityPane: View {
             Section("Leak protection") {
                 Toggle("Block IPv6 traffic when the VPN has no IPv6", isOn: pref(\.blockIpv6))
             }
+            WiFiSection()
         }
         .formStyle(.grouped)
     }
@@ -516,6 +517,93 @@ struct SecurityPane: View {
             manager.preferences[keyPath: path] = value
             manager.savePreferences()
         })
+    }
+}
+
+struct WiFiSection: View {
+    @EnvironmentObject var manager: ConnectionManager
+    @ObservedObject private var wifi = WiFiWatcher.shared
+    @State private var newNetwork = ""
+
+    var body: some View {
+        Section {
+            Picker("Connect automatically on untrusted Wi-Fi", selection: autoConnect) {
+                Text("Off").tag("")
+                ForEach(manager.orderedConnections) { Text($0.name).tag($0.id) }
+            }
+            if manager.preferences.autoConnect != nil {
+                Toggle("Disconnect when joining a trusted network", isOn: Binding(
+                    get: { manager.preferences.disconnectOnTrusted },
+                    set: { manager.preferences.disconnectOnTrusted = $0; manager.savePreferences() }))
+                if !wifi.canReadNetworkName {
+                    LabeledContent {
+                        Button("Allow…") { wifi.requestAccess() }
+                    } label: {
+                        Text("Location access needed")
+                        Text("macOS shares the Wi-Fi network name only with apps that have location access.")
+                    }
+                }
+            }
+        } header: {
+            Text("Wi-Fi")
+        }
+        if manager.preferences.autoConnect != nil {
+            trusted
+        }
+    }
+
+    private var trusted: some View {
+        Section {
+            ForEach(manager.preferences.trustedNetworks, id: \.self) { name in
+                LabeledContent(name) {
+                    Button {
+                        update { $0.trustedNetworks.removeAll { $0 == name } }
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Remove")
+                }
+            }
+            HStack {
+                TextField("Network name", text: $newNetwork, prompt: Text("Network name"))
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit(addTyped)
+                Button("Add", action: addTyped).disabled(newNetwork.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            if let current = wifi.ssid, !manager.preferences.trustedNetworks.contains(current) {
+                Button("Trust \u{201C}\(current)\u{201D}") { add(current) }
+            }
+        } header: {
+            Text("Trusted networks")
+        } footer: {
+            Text("Fluidity connects automatically when you join any other Wi-Fi network.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var autoConnect: Binding<String> {
+        Binding(get: { manager.preferences.autoConnect ?? "" }, set: { value in
+            update { $0.autoConnect = value.isEmpty ? nil : value }
+            if !value.isEmpty && !wifi.canReadNetworkName { wifi.requestAccess() }
+        })
+    }
+
+    private func addTyped() {
+        add(newNetwork.trimmingCharacters(in: .whitespaces))
+        newNetwork = ""
+    }
+
+    private func add(_ name: String) {
+        guard !name.isEmpty, !manager.preferences.trustedNetworks.contains(name) else { return }
+        update { $0.trustedNetworks.append(name) }
+    }
+
+    private func update(_ change: (inout Preferences) -> Void) {
+        change(&manager.preferences)
+        manager.savePreferences()
     }
 }
 

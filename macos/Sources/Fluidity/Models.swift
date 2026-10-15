@@ -276,6 +276,9 @@ struct Preferences: Codable, Equatable {
     var blockIpv6 = true
     var killSwitch = false
     var killSwitchAllowLan = true
+    var autoConnect: String?
+    var trustedNetworks: [String] = []
+    var disconnectOnTrusted = true
     var openvpnVersion: String?
 }
 

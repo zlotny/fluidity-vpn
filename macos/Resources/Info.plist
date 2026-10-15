@@ -34,6 +34,10 @@
   <true/>
   <key>OSAScriptingDefinition</key>
   <string>Fluidity.sdef</string>
+  <key>NSLocationUsageDescription</key>
+  <string>Fluidity reads the name of your Wi-Fi network to connect automatically on networks you do not trust.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Fluidity reads the name of your Wi-Fi network to connect automatically on networks you do not trust.</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>Fluidity runs your connection scripts with AppleScript.</string>
   <key>CFBundleDocumentTypes</key>

@@ -49,7 +49,31 @@ pub struct Preferences {
     pub block_ipv6: bool,
     pub kill_switch: bool,
     pub kill_switch_allow_lan: bool,
+    pub auto_connect: Option<String>,
+    pub trusted_networks: Vec<String>,
+    pub disconnect_on_trusted: bool,
     pub openvpn_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WifiAction {
+    Connect,
+    Disconnect,
+}
+
+impl Preferences {
+    pub fn is_trusted(&self, ssid: &str) -> bool {
+        self.trusted_networks.iter().any(|n| n == ssid)
+    }
+
+    pub fn wifi_action(&self, ssid: &str, active: bool, auto_connected: bool) -> Option<WifiAction> {
+        self.auto_connect.as_ref()?;
+        if self.is_trusted(ssid) {
+            (self.disconnect_on_trusted && active && auto_connected).then_some(WifiAction::Disconnect)
+        } else {
+            (!active).then_some(WifiAction::Connect)
+        }
+    }
 }
 
 impl Default for Preferences {
@@ -73,6 +97,9 @@ impl Default for Preferences {
             block_ipv6: true,
             kill_switch: false,
             kill_switch_allow_lan: true,
+            auto_connect: None,
+            trusted_networks: Vec::new(),
+            disconnect_on_trusted: true,
             openvpn_version: None,
         }
     }
@@ -137,6 +164,21 @@ fn managed_overrides() -> Option<serde_json::Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decides_wifi_actions() {
+        let mut prefs = Preferences::default();
+        assert_eq!(prefs.wifi_action("Cafe", false, false), None);
+        prefs.auto_connect = Some("a".into());
+        prefs.trusted_networks = vec!["Home".into()];
+        assert_eq!(prefs.wifi_action("Cafe", false, false), Some(WifiAction::Connect));
+        assert_eq!(prefs.wifi_action("Cafe", true, true), None);
+        assert_eq!(prefs.wifi_action("Home", true, true), Some(WifiAction::Disconnect));
+        assert_eq!(prefs.wifi_action("Home", true, false), None);
+        assert_eq!(prefs.wifi_action("Home", false, false), None);
+        prefs.disconnect_on_trusted = false;
+        assert_eq!(prefs.wifi_action("Home", true, true), None);
+    }
 
     #[test]
     fn round_trips_and_tolerates_partial_files() {

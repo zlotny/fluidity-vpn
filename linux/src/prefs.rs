@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 #[cfg(not(windows))]
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -98,6 +99,151 @@ fn choice(
     row
 }
 
+fn wifi_groups(app: &Rc<App>, page: &adw::PreferencesPage) {
+    app.check_wifi();
+    let wifi = adw::PreferencesGroup::builder().title("Wi-Fi").build();
+    let connections = app.connections.borrow().clone();
+    let mut names = vec!["Off"];
+    names.extend(connections.iter().map(|c| c.name.as_str()));
+    let current = app.prefs.borrow().auto_connect.clone();
+    let selected = current
+        .and_then(|id| connections.iter().position(|c| c.id == id))
+        .map(|i| i + 1)
+        .unwrap_or(0);
+    let auto = adw::ComboRow::builder()
+        .title("Connect Automatically on Untrusted Wi-Fi")
+        .model(&gtk::StringList::new(&names))
+        .selected(selected as u32)
+        .build();
+    let disconnect = switch(
+        app,
+        "Disconnect on Trusted Networks",
+        |p| p.disconnect_on_trusted,
+        |p, v| p.disconnect_on_trusted = v,
+    );
+    wifi.add(&auto);
+    wifi.add(&disconnect);
+    page.add(&wifi);
+
+    let trusted = adw::PreferencesGroup::builder()
+        .title("Trusted Networks")
+        .description("Fluidity connects automatically when you join any other Wi-Fi network.")
+        .build();
+    let rows: Rc<RefCell<Vec<gtk::Widget>>> = Rc::default();
+    let entry = adw::EntryRow::builder()
+        .title("Add Network")
+        .show_apply_button(true)
+        .build();
+    let current_row = adw::ActionRow::new();
+    let trust = gtk::Button::builder().label("Trust").valign(gtk::Align::Center).build();
+    current_row.add_suffix(&trust);
+    trusted.add(&entry);
+    trusted.add(&current_row);
+    page.add(&trusted);
+
+    let refresh: Rc<dyn Fn()> = {
+        let app = app.clone();
+        let trusted = trusted.clone();
+        let rows = rows.clone();
+        let current_row = current_row.clone();
+        Rc::new(move || {
+            for row in rows.borrow_mut().drain(..) {
+                trusted.remove(&row);
+            }
+            let list = app.prefs.borrow().trusted_networks.clone();
+            for name in list {
+                let row = adw::ActionRow::builder().title(glib::markup_escape_text(&name)).build();
+                let remove = gtk::Button::builder()
+                    .icon_name("list-remove-symbolic")
+                    .tooltip_text("Remove")
+                    .valign(gtk::Align::Center)
+                    .css_classes(["flat"])
+                    .build();
+                let app = app.clone();
+                remove.connect_clicked(move |button| {
+                    app.prefs.borrow_mut().trusted_networks.retain(|n| *n != name);
+                    app.save_prefs();
+                    if let Some(row) = button.ancestor(adw::ActionRow::static_type()) {
+                        row.set_visible(false);
+                    }
+                });
+                row.add_suffix(&remove);
+                trusted.add(&row);
+                rows.borrow_mut().push(row.upcast());
+            }
+            let ssid = app.ssid.borrow().clone();
+            let show = ssid
+                .as_ref()
+                .is_some_and(|s| !app.prefs.borrow().trusted_networks.contains(s));
+            current_row.set_visible(show);
+            if let Some(ssid) = ssid {
+                current_row.set_title(&glib::markup_escape_text(&format!("Current Network: {ssid}")));
+            }
+        })
+    };
+    refresh();
+    {
+        let refresh = refresh.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(1500), move || refresh());
+    }
+
+    let add: Rc<dyn Fn(String)> = {
+        let app = app.clone();
+        let refresh = refresh.clone();
+        Rc::new(move |name: String| {
+            let name = name.trim().to_string();
+            if name.is_empty() || app.prefs.borrow().is_trusted(&name) {
+                return;
+            }
+            app.prefs.borrow_mut().trusted_networks.push(name);
+            app.save_prefs();
+            refresh();
+        })
+    };
+    {
+        let add = add.clone();
+        entry.connect_apply(move |e| {
+            add(e.text().to_string());
+            e.set_text("");
+        });
+    }
+    {
+        let app = app.clone();
+        trust.connect_clicked(move |_| {
+            let ssid = app.ssid.borrow().clone();
+            if let Some(ssid) = ssid {
+                add(ssid);
+            }
+        });
+    }
+
+    let set_visible = {
+        let disconnect = disconnect.clone();
+        let trusted = trusted.clone();
+        move |on: bool| {
+            disconnect.set_visible(on);
+            trusted.set_visible(on);
+        }
+    };
+    set_visible(selected != 0);
+    let app = app.clone();
+    auto.connect_selected_notify(move |row| {
+        let index = row.selected() as usize;
+        let id = index
+            .checked_sub(1)
+            .and_then(|i| connections.get(i))
+            .map(|c| c.id.clone());
+        let on = id.is_some();
+        app.prefs.borrow_mut().auto_connect = id;
+        app.save_prefs();
+        set_visible(on);
+        if on {
+            app.check_wifi();
+        }
+        refresh();
+    });
+}
+
 const IDLE: [Option<u32>; 6] = [None, Some(5), Some(15), Some(30), Some(60), Some(120)];
 
 pub fn open(app: &Rc<App>) {
@@ -191,6 +337,7 @@ pub fn open(app: &Rc<App>) {
         |p, v| p.block_ipv6 = v,
     ));
     security.add(&leaks);
+    wifi_groups(app, &security);
     dialog.add(&security);
 
     let appearance = adw::PreferencesPage::builder()

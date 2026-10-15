@@ -8,6 +8,7 @@ mod prompt;
 mod scripts;
 mod state;
 mod tray;
+mod wifi;
 mod window;
 
 use std::cell::{Cell, OnceCell};

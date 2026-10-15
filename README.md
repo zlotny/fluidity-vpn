@@ -46,6 +46,7 @@ Fluidity sits in your menu bar or system tray and manages all your OpenVPN conne
 **Behaviour**
 - Reconnect after sleep and on network change. Disconnect when idle.
 - Connect on launch and launch at login.
+- Connect automatically on untrusted Wi-Fi, and disconnect on trusted networks.
 - Choose the OpenVPN version per connection.
 
 **Automation**

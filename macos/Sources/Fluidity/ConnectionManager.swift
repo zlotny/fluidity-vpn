@@ -36,6 +36,7 @@ final class ConnectionManager: ObservableObject {
     private var idleTimer: Timer?
     private var pendingChallenge: [String: String] = [:]
     private var usernames: [String: String] = [:]
+    private var autoConnected: Set<String> = []
 
     var orderedConnections: [ConnectionInfo] {
         var result: [ConnectionInfo] = []
@@ -76,6 +77,8 @@ final class ConnectionManager: ObservableObject {
         daemon.start()
         observeSystem()
         scheduleIdleCheck()
+        WiFiWatcher.shared.onChange = { [weak self] ssid in self?.wifiChanged(ssid) }
+        WiFiWatcher.shared.start()
     }
 
     func reload() {
@@ -119,6 +122,7 @@ final class ConnectionManager: ObservableObject {
             for c in orderedConnections where c.connectOnLaunch && sessions[c.id] == nil {
                 connect(c.id)
             }
+            wifiChanged(WiFiWatcher.shared.ssid)
         }
     }
 
@@ -138,6 +142,7 @@ final class ConnectionManager: ObservableObject {
 
     func connect(_ id: String) {
         guard let connection = connections[id] else { return }
+        autoConnected.remove(id)
         userInitiatedDisconnect.remove(id)
         Task { await performConnect(connection) }
     }
@@ -172,7 +177,23 @@ final class ConnectionManager: ObservableObject {
         }
     }
 
+    private func wifiChanged(_ ssid: String?) {
+        guard let ssid, daemonAvailable, let id = preferences.autoConnect, let connection = connections[id] else { return }
+        if preferences.trustedNetworks.contains(ssid) {
+            if preferences.disconnectOnTrusted && isActive(id) && autoConnected.contains(id) {
+                appendLocalLog(id, "info", "Disconnecting on trusted network \(ssid)")
+                disconnect(id)
+            }
+        } else if !isActive(id) {
+            appendLocalLog(id, "info", "Connecting on untrusted network \(ssid)")
+            notify(title: connection.name, body: "Connecting on untrusted Wi-Fi network \(ssid)")
+            connect(id)
+            autoConnected.insert(id)
+        }
+    }
+
     func disconnect(_ id: String) {
+        autoConnected.remove(id)
         userInitiatedDisconnect.insert(id)
         wantedBeforeSleep.remove(id)
         wantedBeforeNetworkLoss.remove(id)

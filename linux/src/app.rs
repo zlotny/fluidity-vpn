@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use adw::prelude::*;
-use fluidity_core::{CredentialStore, Credentials, Node, Preferences, Store, wire_bundle};
+use fluidity_core::{CredentialStore, Credentials, Node, Preferences, Store, WifiAction, wire_bundle};
 use fluidity_ipc::{ConnectOptions, Event, LogEntry, Prompt, Reply, SessionInfo, SessionState};
 use gtk::{gio, glib};
 
@@ -24,6 +24,8 @@ pub struct App {
     pub traffic: RefCell<HashMap<String, Vec<TrafficSample>>>,
     pub daemon: Cell<bool>,
     pub blocked: RefCell<Vec<String>>,
+    pub ssid: RefCell<Option<String>>,
+    auto_connected: RefCell<HashSet<String>>,
     pub versions: RefCell<Vec<String>>,
     backend: async_channel::Sender<Command>,
     window: RefCell<Option<Rc<Window>>>,
@@ -55,6 +57,8 @@ impl App {
             traffic: RefCell::default(),
             daemon: Cell::new(false),
             blocked: RefCell::default(),
+            ssid: RefCell::default(),
+            auto_connected: RefCell::default(),
             versions: RefCell::default(),
             backend,
             window: RefCell::default(),
@@ -79,6 +83,7 @@ impl App {
         });
         app.observe_system();
         app.schedule_idle_check();
+        app.watch_wifi();
         app
     }
 
@@ -455,6 +460,7 @@ impl App {
             return;
         }
         self.user_disconnect.borrow_mut().remove(id);
+        self.auto_connected.borrow_mut().remove(id);
         let app = self.clone();
         glib::spawn_future_local(async move {
             if let Some(script) = connection.before_connect_script.clone() {
@@ -515,6 +521,7 @@ impl App {
     }
 
     pub fn disconnect(self: &Rc<Self>, id: &str) {
+        self.auto_connected.borrow_mut().remove(id);
         self.user_disconnect.borrow_mut().insert(id.to_string());
         self.wanted_before_sleep.borrow_mut().remove(id);
         self.wanted_before_network.borrow_mut().remove(id);
@@ -858,7 +865,59 @@ impl App {
         });
     }
 
+    fn watch_wifi(self: &Rc<Self>) {
+        let weak = Rc::downgrade(self);
+        glib::timeout_add_seconds_local(10, move || {
+            let Some(app) = weak.upgrade() else {
+                return glib::ControlFlow::Break;
+            };
+            if app.prefs.borrow().auto_connect.is_some() {
+                app.check_wifi();
+            }
+            glib::ControlFlow::Continue
+        });
+    }
+
+    pub fn check_wifi(self: &Rc<Self>) {
+        let app = self.clone();
+        glib::spawn_future_local(async move {
+            let ssid = gio::spawn_blocking(crate::wifi::current_ssid).await.ok().flatten();
+            app.wifi_changed(ssid);
+        });
+    }
+
+    fn wifi_changed(self: &Rc<Self>, ssid: Option<String>) {
+        if *self.ssid.borrow() == ssid {
+            return;
+        }
+        *self.ssid.borrow_mut() = ssid.clone();
+        let Some(ssid) = ssid else { return };
+        if !self.daemon.get() {
+            *self.ssid.borrow_mut() = None;
+            return;
+        }
+        let prefs = self.prefs.borrow().clone();
+        let Some(connection) = prefs.auto_connect.as_deref().and_then(|id| self.connection(id)) else {
+            return;
+        };
+        let id = connection.id.clone();
+        let auto = self.auto_connected.borrow().contains(&id);
+        match prefs.wifi_action(&ssid, self.is_active(&id), auto) {
+            Some(WifiAction::Connect) => {
+                self.notify(
+                    &connection.name,
+                    &format!("Connecting on untrusted Wi-Fi network {ssid}"),
+                );
+                self.connect(&id);
+                self.auto_connected.borrow_mut().insert(id);
+            }
+            Some(WifiAction::Disconnect) => self.disconnect(&id),
+            None => {}
+        }
+    }
+
     fn network_changed(self: &Rc<Self>, available: bool) {
+        self.check_wifi();
         let was = self.network_up.replace(available);
         if !self.prefs.borrow().reconnect_on_network || was == available {
             return;

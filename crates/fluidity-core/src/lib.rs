@@ -7,5 +7,5 @@ mod store;
 
 pub use credentials::{CredentialStore, Credentials};
 pub use editing::save_model;
-pub use preferences::{AddressDisplay, GraphStyle, Preferences, TrafficDisplay};
+pub use preferences::{AddressDisplay, GraphStyle, Preferences, TrafficDisplay, WifiAction};
 pub use store::{Connection, Error, Folder, Node, Store, default_data_dir, wire_bundle};
