@@ -72,8 +72,8 @@ jobs:
         run: |
           if (-not (Test-Path C:\gtk-build\gtk\x64\release\lib\pkgconfig\libadwaita-1.pc)) {
             pip install "gvsbuild==$env:GVSBUILD"
-            Invoke-WebRequest https://github.com/lu-zero/cargo-c/releases/download/v0.10.26/cargo-c-windows-msvc.zip -OutFile $env:RUNNER_TEMP\cargo-c.zip
-            Expand-Archive $env:RUNNER_TEMP\cargo-c.zip -DestinationPath $env:USERPROFILE\.cargo\bin -Force
+            $env:CARGO_HOME = "C:\gtk-build\tools\cargo"
+            $env:RUSTUP_HOME = "C:\gtk-build\tools\cargo"
             python windows/fetch-gtk-sources.py C:\gtk-build\src gtk4 libadwaita librsvg adwaita-icon-theme
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             for ($i = 1; $i -le 3; $i++) {
