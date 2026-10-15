@@ -418,6 +418,9 @@ impl Session {
                 compat_mode: compat.as_deref(),
                 query_proxy: self.settings.use_system_proxy,
                 external_identity: self.settings.system_identity.is_some(),
+                disable_dns_updown: !cfg!(windows)
+                    && openvpn::version_key(&binary.version) >= vec![2, 7]
+                    && !self.spec.document.has("dns-updown"),
             },
             self.spec.document.has("verb"),
         );

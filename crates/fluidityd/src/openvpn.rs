@@ -131,6 +131,7 @@ pub struct LaunchSpec<'a> {
     pub compat_mode: Option<&'a str>,
     pub query_proxy: bool,
     pub external_identity: bool,
+    pub disable_dns_updown: bool,
 }
 
 pub fn arguments(spec: &LaunchSpec, has_verb: bool) -> Vec<String> {
@@ -178,6 +179,10 @@ pub fn arguments(spec: &LaunchSpec, has_verb: bool) -> Vec<String> {
             .map(|s| s.to_string()),
         );
     }
+    if spec.disable_dns_updown {
+        args.push("--dns-updown".into());
+        args.push("disable".into());
+    }
     if spec.query_proxy {
         args.push("--management-query-proxy".into());
     }
@@ -224,6 +229,7 @@ mod tests {
                 compat_mode: Some("2.4.0"),
                 query_proxy: false,
                 external_identity: false,
+                disable_dns_updown: false,
             },
             false,
         );
@@ -244,11 +250,13 @@ mod tests {
                 compat_mode: None,
                 query_proxy: false,
                 external_identity: true,
+                disable_dns_updown: true,
             },
             true,
         );
         let line = args.join(" ");
         assert!(line.contains("--management-external-key pkcs1 pss --management-external-cert fluidity"));
+        assert!(line.contains("--dns-updown disable"));
     }
 
     #[test]
@@ -264,6 +272,7 @@ mod tests {
                 compat_mode: None,
                 query_proxy: false,
                 external_identity: false,
+                disable_dns_updown: false,
             },
             true,
         );
