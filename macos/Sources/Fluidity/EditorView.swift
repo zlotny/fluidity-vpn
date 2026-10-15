@@ -159,6 +159,7 @@ struct GeneralTab: View {
                     Spacer()
                     Toggle("Try servers in random order", isOn: $model.remoteRandom)
                 }
+                TextField("Server timeout (seconds)", text: optionalNumber($model.serverTimeout), prompt: Text("120"))
             }
             Section {
                 Picker("Device", selection: $model.device) {

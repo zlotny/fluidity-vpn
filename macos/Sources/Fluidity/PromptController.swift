@@ -93,7 +93,9 @@ struct PromptView: View {
 
     private var heading: String {
         switch prompt {
-        case .credentials(_, _, let retry): return retry ? "Authentication failed. Try again." : "Enter your credentials"
+        case .credentials(let realm, _, let retry):
+            if retry { return "Authentication failed. Try again." }
+            return realm == "Auth" ? "Enter your credentials" : "Enter your \(realm) credentials"
         case .password(let realm): return realm == "Private Key" ? "Enter the private key passphrase" : "Enter the \(realm) password"
         case .challenge: return "Additional authentication is required"
         case .needOk: return "Confirmation required"

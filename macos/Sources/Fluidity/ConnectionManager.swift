@@ -302,13 +302,19 @@ final class ConnectionManager: ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
-    private func savedCredentials(_ connection: ConnectionInfo) -> SavedCredentials {
-        let scripted: SavedCredentials? = try? Core.call("credentials.load", ScopeParam(scope: "script:\(connection.id)"))
-        if let scripted, scripted.username != nil || scripted.password != nil {
-            try? Core.run("credentials.clear", ScopeParam(scope: "script:\(connection.id)"))
-            return scripted
+    private func credentialScope(_ connection: ConnectionInfo, realm: String) -> String {
+        realm == "Auth" ? connection.credentialScope : "\(connection.credentialScope):\(secretField(realm))"
+    }
+
+    private func savedCredentials(_ connection: ConnectionInfo, realm: String) -> SavedCredentials {
+        if realm == "Auth" {
+            let scripted: SavedCredentials? = try? Core.call("credentials.load", ScopeParam(scope: "script:\(connection.id)"))
+            if let scripted, scripted.username != nil || scripted.password != nil {
+                try? Core.run("credentials.clear", ScopeParam(scope: "script:\(connection.id)"))
+                return scripted
+            }
         }
-        return (try? Core.call("credentials.load", ScopeParam(scope: connection.credentialScope))) ?? SavedCredentials()
+        return (try? Core.call("credentials.load", ScopeParam(scope: credentialScope(connection, realm: realm)))) ?? SavedCredentials()
     }
 
     private func useIdentity(_ id: String, _ prompt: Prompt) -> Bool {
@@ -346,7 +352,7 @@ final class ConnectionManager: ObservableObject {
             return
         }
         if case .credentials(let realm, let challenge, let retry) = prompt, !retry {
-            let saved = savedCredentials(connection)
+            let saved = savedCredentials(connection, realm: realm)
             if let username = saved.username, let password = saved.password, !password.isEmpty {
                 let response: String?
                 if let challenge {
@@ -376,13 +382,18 @@ final class ConnectionManager: ObservableObject {
                 return
             }
         }
-        let saved = savedCredentials(connection)
-        prompts.present(id: id, title: connection.name, prompt: prompt, saved: saved, splitter: connection.staticChallengePassword) { [weak self] reply, remember in
+        var saved = SavedCredentials()
+        var splitter: StaticChallengePassword?
+        if case .credentials(let realm, _, _) = prompt {
+            saved = savedCredentials(connection, realm: realm)
+            if realm == "Auth" { splitter = connection.staticChallengePassword }
+        }
+        prompts.present(id: id, title: connection.name, prompt: prompt, saved: saved, splitter: splitter) { [weak self] reply, remember in
             guard let self else { return }
-            if case .credentials(_, let username, let password, _) = reply {
-                self.usernames[id] = username
+            if case .credentials(let realm, let username, let password, _) = reply {
+                if realm == "Auth" { self.usernames[id] = username }
                 if remember {
-                    try? Core.run("credentials.save", CredentialSave(scope: connection.credentialScope, username: username, password: password))
+                    try? Core.run("credentials.save", CredentialSave(scope: self.credentialScope(connection, realm: realm), username: username, password: password))
                 }
             }
             if case .password(let realm, let password) = reply, remember, case .password = prompt {

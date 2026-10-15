@@ -139,6 +139,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             for entry in custom {
                 let mi = action(entry.title, #selector(runCustom(_:)))
                 mi.representedObject = entry.path
+                if let icon = entry.icon, let image = NSImage(contentsOf: icon) {
+                    image.size = NSSize(width: 16, height: 16)
+                    mi.image = image
+                }
                 menu.addItem(mi)
             }
         }
@@ -290,6 +294,7 @@ enum CustomMenuItems {
     struct Entry {
         var title: String
         var path: String
+        var icon: URL?
     }
 
     static var directory: URL {
@@ -305,13 +310,16 @@ enum CustomMenuItems {
             var isDir: ObjCBool = false
             fm.fileExists(atPath: url.path, isDirectory: &isDir)
             let script: URL
+            var icon: URL?
             if isDir.boolValue {
                 guard let inner = try? fm.contentsOfDirectory(atPath: url.path).sorted().first(where: { $0.hasPrefix("script") }) else { return nil }
                 script = url.appendingPathComponent(inner)
+                let png = url.appendingPathComponent("icon.png")
+                if fm.fileExists(atPath: png.path) { icon = png }
             } else {
                 script = url
             }
-            return Entry(title: url.deletingPathExtension().lastPathComponent, path: script.path)
+            return Entry(title: url.deletingPathExtension().lastPathComponent, path: script.path, icon: icon)
         }
     }
 

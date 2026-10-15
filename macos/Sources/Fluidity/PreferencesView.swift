@@ -152,6 +152,23 @@ enum TreeEdit {
         }
     }
 
+    static func inserting(_ node: Node, before target: String, _ nodes: [Node]) -> [Node] {
+        nodes.flatMap { n -> [Node] in
+            if key(n) == target { return [node, n] }
+            guard case .folder(var f) = n else { return [n] }
+            f.children = inserting(node, before: target, f.children)
+            return [.folder(f)]
+        }
+    }
+
+    static func contains(_ id: String, in nodes: [Node]) -> Bool {
+        nodes.contains { n in
+            if key(n) == id { return true }
+            if case .folder(let f) = n { return contains(id, in: f.children) }
+            return false
+        }
+    }
+
     static func key(_ node: Node) -> String {
         switch node {
         case .connection(let id): return id
@@ -186,6 +203,8 @@ struct ConnectionsPane: View {
                 List(rows, children: \.children, selection: $state.selection) { row in
                     rowView(row)
                         .contextMenu { contextMenu(row) }
+                        .draggable(row.id)
+                        .dropDestination(for: String.self) { ids, _ in drop(ids, on: row) }
                 }
                 .listStyle(.bordered(alternatesRowBackgrounds: true))
                 .overlay(dropTargeted ? RoundedRectangle(cornerRadius: 6).stroke(Color.accentColor, lineWidth: 2) : nil)
@@ -318,6 +337,16 @@ struct ConnectionsPane: View {
         let (rest, node) = TreeEdit.removing(id, from: manager.tree)
         guard let node else { return }
         manager.setTree(TreeEdit.inserting(node, into: folder, rest))
+    }
+
+    private func drop(_ ids: [String], on row: TreeRow) -> Bool {
+        guard let id = ids.first, id != row.id, TreeEdit.contains(id, in: manager.tree) else { return false }
+        if let folder = TreeEdit.folder(id, in: manager.tree), TreeEdit.contains(row.id, in: folder.children) { return false }
+        let (rest, node) = TreeEdit.removing(id, from: manager.tree)
+        guard let node else { return false }
+        manager.setTree(row.isFolder ? TreeEdit.inserting(node, into: row.id, rest) : TreeEdit.inserting(node, before: row.id, rest))
+        state.selection = [id]
+        return true
     }
 
     private func move(_ id: String, by offset: Int) {

@@ -355,6 +355,7 @@ struct EditorModel: Codable, Equatable {
     var fragment: UInt32?
     var tunMtu: UInt32?
     var inactive: UInt32?
+    var serverTimeout: UInt32?
 
     var proxyType = "none"
     var proxyHost = ""
