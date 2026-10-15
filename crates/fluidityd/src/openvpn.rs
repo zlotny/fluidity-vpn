@@ -1,0 +1,177 @@
+use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Binary {
+    pub version: String,
+    pub path: PathBuf,
+}
+
+fn exe_dir() -> Option<PathBuf> {
+    std::env::current_exe().ok()?.parent().map(Path::to_path_buf)
+}
+
+fn bundled_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Some(dir) = std::env::var_os("FLUIDITY_OPENVPN_DIR") {
+        roots.push(PathBuf::from(dir));
+    }
+    if let Some(exe) = exe_dir() {
+        roots.push(exe.join("openvpn"));
+        roots.push(exe.join("../Resources/openvpn"));
+        roots.push(exe.join("../lib/fluidity/openvpn"));
+    }
+    roots.push(PathBuf::from("/Library/Application Support/Fluidity/openvpn"));
+    roots.push(PathBuf::from("/usr/lib/fluidity/openvpn"));
+    roots
+}
+
+const SYSTEM_PATHS: &[&str] = &[
+    "/opt/homebrew/sbin/openvpn",
+    "/usr/local/sbin/openvpn",
+    "/usr/sbin/openvpn",
+    "/usr/bin/openvpn",
+    "/sbin/openvpn",
+];
+
+fn binary_name() -> &'static str {
+    if cfg!(windows) { "openvpn.exe" } else { "openvpn" }
+}
+
+pub fn probe_version(path: &Path) -> Option<String> {
+    let output = std::process::Command::new(path).arg("--version").output().ok()?;
+    let text = String::from_utf8_lossy(&output.stdout);
+    let first = text.lines().next()?;
+    let version = first.split_whitespace().nth(1)?;
+    version.chars().next()?.is_ascii_digit().then(|| version.to_string())
+}
+
+pub fn version_key(version: &str) -> Vec<u32> {
+    version
+        .split(|c: char| !c.is_ascii_digit())
+        .filter(|p| !p.is_empty())
+        .map(|p| p.parse().unwrap_or(0))
+        .collect()
+}
+
+pub fn discover() -> Vec<Binary> {
+    let mut found: Vec<Binary> = Vec::new();
+    let mut push = |path: PathBuf| {
+        if !path.is_file() || found.iter().any(|b| b.path == path) {
+            return;
+        }
+        if let Some(version) = probe_version(&path) {
+            found.push(Binary { version, path });
+        }
+    };
+    if let Some(path) = std::env::var_os("FLUIDITY_OPENVPN") {
+        push(PathBuf::from(path));
+    }
+    for root in bundled_roots() {
+        let Ok(entries) = std::fs::read_dir(&root) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            push(entry.path().join(binary_name()));
+        }
+    }
+    for path in SYSTEM_PATHS {
+        push(PathBuf::from(path));
+    }
+    found.sort_by_key(|b| std::cmp::Reverse(version_key(&b.version)));
+    found
+}
+
+pub fn select<'a>(binaries: &'a [Binary], requested: Option<&str>) -> Option<&'a Binary> {
+    let requested = requested.filter(|r| !r.is_empty() && *r != "latest" && *r != "automatic");
+    if let Some(want) = requested {
+        let want_key = version_key(want);
+        if let Some(b) = binaries.iter().find(|b| version_key(&b.version).starts_with(&want_key)) {
+            return Some(b);
+        }
+    }
+    binaries.first()
+}
+
+pub struct LaunchSpec<'a> {
+    pub management_socket: &'a Path,
+    pub gui_version: &'a str,
+    pub compat_mode: Option<&'a str>,
+    pub query_proxy: bool,
+}
+
+pub fn arguments(spec: &LaunchSpec, has_verb: bool) -> Vec<String> {
+    let mut args: Vec<String> = ["--config", fluidity_config::CONFIG_FILE, "--management"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    args.push(spec.management_socket.to_string_lossy().into_owned());
+    args.extend(
+        [
+            "unix",
+            "--management-hold",
+            "--management-query-passwords",
+            "--management-up-down",
+            "--auth-retry",
+            "interact",
+            "--script-security",
+            "1",
+            "--setenv",
+            "IV_GUI_VER",
+        ]
+        .iter()
+        .map(|s| s.to_string()),
+    );
+    args.push(spec.gui_version.to_string());
+    if spec.query_proxy {
+        args.push("--management-query-proxy".into());
+    }
+    if let Some(mode) = spec.compat_mode {
+        args.push("--compat-mode".into());
+        args.push(mode.into());
+    }
+    args.push("--log".into());
+    args.push(if cfg!(windows) { "NUL" } else { "/dev/null" }.into());
+    if !has_verb {
+        args.push("--verb".into());
+        args.push("3".into());
+    }
+    args
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn b(v: &str) -> Binary {
+        Binary {
+            version: v.into(),
+            path: PathBuf::from(format!("/x/{v}/openvpn")),
+        }
+    }
+
+    #[test]
+    fn selects_requested_or_latest() {
+        let list = vec![b("2.7.8"), b("2.6.14"), b("2.5.11")];
+        assert_eq!(select(&list, None).unwrap().version, "2.7.8");
+        assert_eq!(select(&list, Some("2.6")).unwrap().version, "2.6.14");
+        assert_eq!(select(&list, Some("2.4")).unwrap().version, "2.7.8");
+        assert_eq!(select(&list, Some("latest")).unwrap().version, "2.7.8");
+    }
+
+    #[test]
+    fn builds_arguments() {
+        let sock = PathBuf::from("/run/x/mgmt.sock");
+        let args = arguments(
+            &LaunchSpec {
+                management_socket: &sock,
+                gui_version: "Fluidity_0.1.0",
+                compat_mode: Some("2.4.0"),
+                query_proxy: false,
+            },
+            false,
+        );
+        let line = args.join(" ");
+        assert!(line.starts_with("--config config.conf --management /run/x/mgmt.sock unix --management-hold"));
+        assert!(line.ends_with("--compat-mode 2.4.0 --log /dev/null --verb 3"));
+    }
+}

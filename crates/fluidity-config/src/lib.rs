@@ -4,6 +4,7 @@ mod error;
 mod files;
 mod lexer;
 pub mod safety;
+pub mod settings;
 
 pub use bundle::{ARCHIVE_EXTENSION, BUNDLE_EXTENSION, Bundle, CONFIG_FILE, SCRIPT_META_KEYS};
 pub use document::{Document, Item, META_PREFIX};

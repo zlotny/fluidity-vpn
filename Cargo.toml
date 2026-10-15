@@ -17,3 +17,18 @@ flate2 = "1"
 tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "process", "signal", "fs"] }
 base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+fluidity-config = { path = "crates/fluidity-config" }
+fluidity-mgmt = { path = "crates/fluidity-mgmt" }
+fluidity-ipc = { path = "crates/fluidity-ipc" }
+fluidity-core = { path = "crates/fluidity-core" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+libc = "0.2"
+clap = { version = "4", features = ["derive", "env"] }
+uuid = { version = "1", features = ["v4"] }
+system-configuration = "0.8"
+core-foundation = "0.10"
+keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "tokio", "crypto-rust"] }
+rpassword = "7"
