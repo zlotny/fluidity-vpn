@@ -21,6 +21,62 @@ use crate::netconfig::{self, Inputs};
 use crate::obfs;
 use crate::openvpn;
 
+enum Endpoint {
+    #[cfg(unix)]
+    Unix(PathBuf),
+    #[cfg(windows)]
+    Tcp { port: u16, password: String, file: PathBuf },
+}
+
+impl Endpoint {
+    #[cfg(unix)]
+    fn create(dir: &Path) -> Result<Self, String> {
+        Ok(Self::Unix(dir.join("mgmt.sock")))
+    }
+
+    #[cfg(windows)]
+    fn create(dir: &Path) -> Result<Self, String> {
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .and_then(|l| l.local_addr())
+            .map_err(|e| format!("Cannot reserve a management port: {e}"))?
+            .port();
+        let password = uuid::Uuid::new_v4().simple().to_string();
+        let file = dir.join("mgmt.pw");
+        std::fs::write(&file, format!("{password}\n")).map_err(|e| format!("Cannot prepare connection files: {e}"))?;
+        Ok(Self::Tcp { port, password, file })
+    }
+
+    fn management(&self) -> openvpn::Management<'_> {
+        match self {
+            #[cfg(unix)]
+            Self::Unix(path) => openvpn::Management::Unix(path),
+            #[cfg(windows)]
+            Self::Tcp { port, file, .. } => openvpn::Management::Tcp {
+                port: *port,
+                password_file: file,
+            },
+        }
+    }
+
+    async fn connect(&self) -> Option<(Mgmt, mpsc::UnboundedReceiver<MgmtEvent>)> {
+        match self {
+            #[cfg(unix)]
+            Self::Unix(path) => {
+                if !path.exists() {
+                    return None;
+                }
+                Mgmt::connect_unix(path).await.ok()
+            }
+            #[cfg(windows)]
+            Self::Tcp { port, password, .. } => {
+                Mgmt::connect_tcp(std::net::SocketAddr::from(([127, 0, 0, 1], *port)), password)
+                    .await
+                    .ok()
+            }
+        }
+    }
+}
+
 const RECONNECT_DELAYS: [u64; 6] = [2, 5, 10, 20, 40, 60];
 
 pub fn now() -> u64 {
@@ -313,7 +369,7 @@ impl Session {
             .map_err(|e| format!("Cannot prepare connection files: {e}"))
     }
 
-    async fn launch(&self, dir: &Path, socket: &Path) -> Result<Child, String> {
+    async fn launch(&self, dir: &Path, endpoint: &Endpoint) -> Result<Child, String> {
         let binaries = tokio::task::spawn_blocking(openvpn::discover).await.unwrap_or_default();
         let requested = self
             .spec
@@ -329,7 +385,7 @@ impl Session {
             .map(|r| format!("{r}.0"));
         let args = openvpn::arguments(
             &openvpn::LaunchSpec {
-                management_socket: socket,
+                management: endpoint.management(),
                 gui_version: &self.daemon.gui_version,
                 compat_mode: compat.as_deref(),
                 query_proxy: self.settings.use_system_proxy,
@@ -392,17 +448,14 @@ impl Session {
 
     async fn connect_management(
         &self,
-        socket: &Path,
+        endpoint: &Endpoint,
         child: &mut Child,
     ) -> Result<(Mgmt, mpsc::UnboundedReceiver<MgmtEvent>), String> {
         for _ in 0..150 {
             if let Ok(Some(status)) = child.try_wait() {
                 return Err(format!("OpenVPN exited during startup ({status})"));
             }
-            #[cfg(unix)]
-            if socket.exists()
-                && let Ok(pair) = Mgmt::connect_unix(socket).await
-            {
+            if let Some(pair) = endpoint.connect().await {
                 return Ok(pair);
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -425,13 +478,16 @@ impl Session {
         if let Err(error) = self.start_obfuscation(&dir).await {
             return Outcome::Exited { error: Some(error) };
         }
-        let socket = dir.join("mgmt.sock");
-        let mut child = match self.launch(&dir, &socket).await {
+        let endpoint = match Endpoint::create(&dir) {
+            Ok(endpoint) => endpoint,
+            Err(error) => return Outcome::Exited { error: Some(error) },
+        };
+        let mut child = match self.launch(&dir, &endpoint).await {
             Ok(child) => child,
             Err(error) => return Outcome::Exited { error: Some(error) },
         };
         self.forward_output(&mut child);
-        let (mgmt, mut events) = match self.connect_management(&socket, &mut child).await {
+        let (mgmt, mut events) = match self.connect_management(&endpoint, &mut child).await {
             Ok(pair) => pair,
             Err(error) => {
                 let _ = child.wait().await;

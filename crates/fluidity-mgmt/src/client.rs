@@ -1,9 +1,10 @@
 use std::collections::VecDeque;
+#[cfg(unix)]
 use std::path::Path;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::event::{DynamicChallenge, Event};
@@ -95,6 +96,38 @@ pub fn static_challenge_password(password: &str, response: &str) -> String {
     format!("SCRV1:{}:{}", STANDARD.encode(password), STANDARD.encode(response))
 }
 
+pub async fn authenticate<S>(stream: &mut S, password: &str) -> Result<(), Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    const PROMPT: &[u8] = b"ENTER PASSWORD:";
+    let mut seen = Vec::new();
+    let mut byte = [0u8; 1];
+    while !seen.ends_with(PROMPT) {
+        if stream.read(&mut byte).await? == 0 || seen.len() > 4096 {
+            return Err(Error::Closed);
+        }
+        seen.push(byte[0]);
+    }
+    stream.write_all(format!("{password}\n").as_bytes()).await?;
+    let mut line = Vec::new();
+    loop {
+        if stream.read(&mut byte).await? == 0 {
+            return Err(Error::Closed);
+        }
+        if byte[0] == b'\n' {
+            break;
+        }
+        line.push(byte[0]);
+    }
+    let line = String::from_utf8_lossy(&line);
+    if line.starts_with("SUCCESS") {
+        Ok(())
+    } else {
+        Err(Error::Rejected(line.trim().to_string()))
+    }
+}
+
 impl Client {
     pub fn new<S>(stream: S) -> (Self, mpsc::UnboundedReceiver<Event>)
     where
@@ -109,6 +142,15 @@ impl Client {
     #[cfg(unix)]
     pub async fn connect_unix(path: &Path) -> Result<(Self, mpsc::UnboundedReceiver<Event>), Error> {
         let stream = tokio::net::UnixStream::connect(path).await?;
+        Ok(Self::new(stream))
+    }
+
+    pub async fn connect_tcp(
+        addr: std::net::SocketAddr,
+        password: &str,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<Event>), Error> {
+        let mut stream = tokio::net::TcpStream::connect(addr).await?;
+        authenticate(&mut stream, password).await?;
         Ok(Self::new(stream))
     }
 

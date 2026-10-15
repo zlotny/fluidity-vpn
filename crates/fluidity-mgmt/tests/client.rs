@@ -153,3 +153,36 @@ async fn pending_commands_fail_when_closed() {
     drop(server);
     assert!(matches!(task.await.unwrap(), Err(Error::Closed) | Err(Error::Io(_))));
 }
+
+#[tokio::test]
+async fn password_handshake() {
+    let (mut a, b) = tokio::io::duplex(256);
+    let server = tokio::spawn(async move {
+        let (read, mut write) = tokio::io::split(b);
+        write.write_all(b"ENTER PASSWORD:").await.unwrap();
+        let mut lines = BufReader::new(read).lines();
+        let pw = lines.next_line().await.unwrap().unwrap();
+        let reply: &[u8] = if pw == "s3cret" {
+            b"SUCCESS: password is correct\n>INFO:x\n"
+        } else {
+            b"ERROR: bad password\n"
+        };
+        write.write_all(reply).await.unwrap();
+        (lines, write)
+    });
+    fluidity_mgmt::authenticate(&mut a, "s3cret").await.unwrap();
+    let _ = server.await;
+
+    let (mut a, b) = tokio::io::duplex(256);
+    tokio::spawn(async move {
+        let (read, mut write) = tokio::io::split(b);
+        write.write_all(b"ENTER PASSWORD:").await.unwrap();
+        let mut lines = BufReader::new(read).lines();
+        let _ = lines.next_line().await;
+        write.write_all(b"ERROR: bad password\n").await.unwrap();
+    });
+    assert!(matches!(
+        fluidity_mgmt::authenticate(&mut a, "nope").await,
+        Err(Error::Rejected(_))
+    ));
+}

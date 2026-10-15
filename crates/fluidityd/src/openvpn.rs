@@ -22,6 +22,13 @@ fn bundled_roots() -> Vec<PathBuf> {
     roots
 }
 
+#[cfg(windows)]
+const SYSTEM_PATHS: &[&str] = &[
+    r"C:\Program Files\OpenVPN\bin\openvpn.exe",
+    r"C:\Program Files (x86)\OpenVPN\bin\openvpn.exe",
+];
+
+#[cfg(not(windows))]
 const SYSTEM_PATHS: &[&str] = &[
     "/opt/homebrew/sbin/openvpn",
     "/usr/local/sbin/openvpn",
@@ -111,8 +118,15 @@ pub fn select<'a>(binaries: &'a [Binary], requested: Option<&str>) -> Option<&'a
     binaries.first()
 }
 
+pub enum Management<'a> {
+    #[cfg_attr(windows, allow(dead_code))]
+    Unix(&'a Path),
+    #[cfg_attr(not(windows), allow(dead_code))]
+    Tcp { port: u16, password_file: &'a Path },
+}
+
 pub struct LaunchSpec<'a> {
-    pub management_socket: &'a Path,
+    pub management: Management<'a>,
     pub gui_version: &'a str,
     pub compat_mode: Option<&'a str>,
     pub query_proxy: bool,
@@ -124,10 +138,19 @@ pub fn arguments(spec: &LaunchSpec, has_verb: bool) -> Vec<String> {
         .iter()
         .map(|s| s.to_string())
         .collect();
-    args.push(spec.management_socket.to_string_lossy().into_owned());
+    match spec.management {
+        Management::Unix(path) => {
+            args.push(path.to_string_lossy().into_owned());
+            args.push("unix".into());
+        }
+        Management::Tcp { port, password_file } => {
+            args.push("127.0.0.1".into());
+            args.push(port.to_string());
+            args.push(password_file.to_string_lossy().into_owned());
+        }
+    }
     args.extend(
         [
-            "unix",
             "--management-hold",
             "--management-query-passwords",
             "--management-up-down",
@@ -196,7 +219,7 @@ mod tests {
         let sock = PathBuf::from("/run/x/mgmt.sock");
         let args = arguments(
             &LaunchSpec {
-                management_socket: &sock,
+                management: Management::Unix(&sock),
                 gui_version: "Fluidity_0.1.0",
                 compat_mode: Some("2.4.0"),
                 query_proxy: false,
@@ -215,7 +238,7 @@ mod tests {
         let sock = PathBuf::from("/run/x/mgmt.sock");
         let args = arguments(
             &LaunchSpec {
-                management_socket: &sock,
+                management: Management::Unix(&sock),
                 gui_version: "Fluidity_0.1.0",
                 compat_mode: None,
                 query_proxy: false,
@@ -225,5 +248,27 @@ mod tests {
         );
         let line = args.join(" ");
         assert!(line.contains("--management-external-key pkcs1 pss --management-external-cert fluidity"));
+    }
+
+    #[test]
+    fn builds_tcp_management() {
+        let pw = PathBuf::from("mgmt.pw");
+        let args = arguments(
+            &LaunchSpec {
+                management: Management::Tcp {
+                    port: 50123,
+                    password_file: &pw,
+                },
+                gui_version: "Fluidity_0.1.0",
+                compat_mode: None,
+                query_proxy: false,
+                external_identity: false,
+            },
+            true,
+        );
+        assert!(
+            args.join(" ")
+                .starts_with("--config config.conf --management 127.0.0.1 50123 mgmt.pw --management-hold")
+        );
     }
 }
