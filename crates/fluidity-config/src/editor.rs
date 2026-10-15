@@ -127,6 +127,7 @@ pub struct EditorModel {
     pub name: String,
     pub remotes: Vec<Remote>,
     pub remote_random: bool,
+    pub server_timeout: Option<u32>,
     pub device: Device,
     pub dhcp: bool,
     pub ipv6: bool,
@@ -204,6 +205,7 @@ const MANAGED: &[&str] = &[
     "port",
     "rport",
     "remote-random",
+    "server-poll-timeout",
     "dev",
     "dev-type",
     "tun-ipv6",
@@ -475,6 +477,7 @@ impl EditorModel {
             name: settings.name.clone(),
             remotes,
             remote_random: doc.has("remote-random"),
+            server_timeout: num(doc.directive("server-poll-timeout"), 0),
             device,
             dhcp: settings.dhcp,
             ipv6: settings.ipv6,
@@ -666,6 +669,9 @@ impl EditorModel {
         }
         if self.remote_random {
             push(&mut doc, "remote-random", &[]);
+        }
+        if let Some(timeout) = self.server_timeout {
+            push(&mut doc, "server-poll-timeout", &[&timeout.to_string()]);
         }
         if self.pull && !doc.has("client") {
             push(&mut doc, "pull", &[]);
@@ -869,6 +875,7 @@ dev tun
 proto udp
 remote vpn1.example.com 1194
 remote vpn2.example.com 443 tcp-client
+server-poll-timeout 15
 ca ca.crt
 cert client.crt
 key client.key
@@ -905,6 +912,7 @@ remote x 1
         assert_eq!(m.remotes.len(), 2);
         assert_eq!(m.remotes[1].transport, Transport::Tcp);
         assert_eq!(m.remotes[1].port, 443);
+        assert_eq!(m.server_timeout, Some(15));
         assert_eq!(m.auth_type, AuthType::Tls);
         assert!(m.user_pass);
         assert_eq!(m.ca.bytes().unwrap(), b"ca.crt data");

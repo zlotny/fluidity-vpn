@@ -332,7 +332,7 @@ impl Session {
                 management_socket: socket,
                 gui_version: &self.daemon.gui_version,
                 compat_mode: compat.as_deref(),
-                query_proxy: false,
+                query_proxy: self.settings.use_system_proxy,
                 external_identity: self.settings.system_identity.is_some(),
             },
             self.spec.document.has("verb"),
@@ -669,8 +669,17 @@ impl Session {
             MgmtEvent::Remote { .. } => {
                 let _ = mgmt.remote(fluidity_mgmt::RemoteAction::Accept).await;
             }
-            MgmtEvent::Proxy { .. } => {
-                let _ = mgmt.proxy(fluidity_mgmt::ProxyAction::None).await;
+            MgmtEvent::Proxy { proto, host, .. } => {
+                let proxies = tokio::task::spawn_blocking(crate::proxy::SystemProxies::current)
+                    .await
+                    .unwrap_or_default();
+                let action = proxies.choose(&host, &proto);
+                if let fluidity_mgmt::ProxyAction::Http { host: ref p, port, .. }
+                | fluidity_mgmt::ProxyAction::Socks { host: ref p, port } = action
+                {
+                    self.log("info", format!("Using system proxy {p}:{port}")).await;
+                }
+                let _ = mgmt.proxy(action).await;
             }
             _ => {}
         }

@@ -33,6 +33,10 @@ client_conf "E2E" > e2e.ovpn
 { client_conf "Challenge"; echo 'static-challenge "Enter OTP" 1'; } > challenge.ovpn
 { client_conf "Obfs" | sed 's/^remote 127.0.0.1 1194/remote 127.0.0.1 2443/'
   echo "#fluidity obfs obfs4"; echo "#fluidity obfskey $obfs4_cert"; } > obfs.ovpn
+{ client_conf "Proxy" | sed -e 's/^remote 127.0.0.1 1194/remote 127.0.0.1 1195/' -e 's/^proto udp/proto tcp-client/'
+  echo "http-proxy 127.0.0.1 8888 stdin basic"; } > proxy.ovpn
+printf 'Port 8888\nListen 127.0.0.1\nAllow 127.0.0.1\nBasicAuth bob hunter2\nLogFile "/tmp/tinyproxy.log"\nPidFile "/tmp/tinyproxy.pid"\n' > /tmp/tinyproxy.conf
+tinyproxy -c /tmp/tinyproxy.conf
 
 FLUIDITY_LYREBIRD=/usr/bin/obfs4proxy fluidityd --log debug > /tmp/fluidityd.log 2>&1 &
 for _ in $(seq 50); do [ -S /var/run/fluidityd.sock ] && break; sleep 0.1; done
@@ -43,7 +47,7 @@ check() {
   if eval "$2"; then echo "PASS $1"; pass=$((pass + 1)); else echo "FAIL $1"; fail=$((fail + 1)); fi
 }
 
-fluidity import e2e.ovpn unsafe.ovpn challenge.ovpn obfs.ovpn
+fluidity import e2e.ovpn unsafe.ovpn challenge.ovpn obfs.ovpn proxy.ovpn
 check "list shows imported connections" "fluidity list | grep -q E2E"
 
 cp /etc/resolv.conf /tmp/resolv.before
@@ -69,6 +73,11 @@ fluidity disconnect --all
 for _ in $(seq 100); do fluidity status | grep -q 'No active' && break; sleep 0.1; done
 
 check "obfs4 obfuscation" "printf 'alice\nsecret\n' | timeout 60 fluidity connect Obfs && ping -c 2 -W 2 10.98.0.1 >/dev/null"
+fluidity disconnect --all
+for _ in $(seq 100); do fluidity status | grep -q 'No active' && break; sleep 0.1; done
+
+check "HTTP proxy with authentication" "printf 'alice\nsecret\nbob\nhunter2\n' | timeout 60 fluidity connect Proxy 2>&1 | tee /tmp/proxy.log | grep -q '^Connected' && ping -c 2 -W 2 10.98.0.1 >/dev/null"
+check "proxy realm prompt" "grep -q 'Proxy HTTP Proxy username' /tmp/proxy.log"
 fluidity disconnect --all
 for _ in $(seq 100); do fluidity status | grep -q 'No active' && break; sleep 0.1; done
 

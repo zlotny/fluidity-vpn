@@ -8,6 +8,8 @@ pub struct Credentials {
 
 pub struct CredentialStore;
 
+const PROXY_REALMS: [&str; 2] = ["http-proxy", "socks-proxy"];
+
 fn entry(scope: &str, field: &str) -> Option<keyring::Entry> {
     keyring::Entry::new(SERVICE, &format!("{scope}:{field}")).ok()
 }
@@ -46,13 +48,16 @@ impl CredentialStore {
     }
 
     pub fn clear(scope: &str) {
-        for field in [
-            "username",
-            "password",
-            "private-key",
-            "proxy-username",
-            "proxy-password",
-        ] {
+        let proxies = PROXY_REALMS.map(|realm| format!("{scope}:{realm}"));
+        let fields = ["username", "password", "private-key"]
+            .into_iter()
+            .map(|field| (scope, field))
+            .chain(
+                proxies
+                    .iter()
+                    .flat_map(|p| [(p.as_str(), "username"), (p.as_str(), "password")]),
+            );
+        for (scope, field) in fields {
             if let Some(e) = entry(scope, field) {
                 let _ = e.delete_credential();
             }

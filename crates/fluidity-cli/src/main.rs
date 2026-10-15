@@ -445,13 +445,18 @@ fn answer(conn: &fluidity_core::Connection, scope: &str, prompt: Prompt, save: b
             if retry {
                 eprintln!("Authentication failed. Enter your credentials again.");
             }
+            let label = if realm == "Auth" {
+                conn.name.clone()
+            } else {
+                format!("{} {realm}", conn.name)
+            };
             let username = match saved.username {
                 Some(u) => u,
-                None => ask(&format!("{} username: ", conn.name), false)?,
+                None => ask(&format!("{label} username: "), false)?,
             };
             let mut password = match saved.password {
                 Some(p) => p,
-                None => ask(&format!("{} password: ", conn.name), true)?,
+                None => ask(&format!("{label} password: "), true)?,
             };
             if save && realm == "Auth" {
                 let to_save = Credentials {
@@ -462,7 +467,12 @@ fn answer(conn: &fluidity_core::Connection, scope: &str, prompt: Prompt, save: b
                     eprintln!("fluidity: cannot save credentials: {e}");
                 }
             }
-            if let Some(extra) = &conn.settings.static_challenge_password {
+            if let Some(extra) = conn
+                .settings
+                .static_challenge_password
+                .as_ref()
+                .filter(|_| realm == "Auth")
+            {
                 let code = ask(&format!("{}: ", extra.text), false)?;
                 password = format!("{password}{}{code}", extra.delimiter);
             }

@@ -3,6 +3,7 @@ mod net;
 mod netconfig;
 mod obfs;
 mod openvpn;
+mod proxy;
 mod server;
 mod session;
 
