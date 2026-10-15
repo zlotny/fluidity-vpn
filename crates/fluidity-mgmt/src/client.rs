@@ -228,7 +228,7 @@ impl Client {
         self.command(format!("version {management_version}")).await
     }
 
-    pub async fn pkcs11_ids(&self) -> Result<Vec<String>, Error> {
+    pub async fn pkcs11_ids(&self) -> Result<Vec<Pkcs11Id>, Error> {
         let count = self.command("pkcs11-id-count").await?;
         let n = match &count {
             Response::Success(text) => text.trim().parse().unwrap_or(0),
@@ -236,12 +236,61 @@ impl Client {
         };
         let mut ids = Vec::with_capacity(n);
         for i in 0..n {
-            if let Response::Success(entry) = self.command(format!("pkcs11-id-get {i}")).await? {
-                ids.push(entry);
+            if let Response::Success(entry) = self.command(format!("pkcs11-id-get {i}")).await?
+                && let Some(id) = Pkcs11Id::parse(&entry)
+            {
+                ids.push(id);
             }
         }
         Ok(ids)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Pkcs11Id {
+    pub id: String,
+    pub blob: String,
+}
+
+impl Pkcs11Id {
+    pub fn parse(entry: &str) -> Option<Self> {
+        let field = |key: &str| {
+            let start = entry.find(&format!("{key}:'"))? + key.len() + 2;
+            let end = entry[start..].find('\'')? + start;
+            Some(entry[start..end].to_string())
+        };
+        Some(Self {
+            id: field("ID")?,
+            blob: field("BLOB").unwrap_or_default(),
+        })
+    }
+
+    pub fn label(&self) -> String {
+        let parts: Vec<String> = self.id.split('/').map(unescape).collect();
+        match parts.as_slice() {
+            [manufacturer, model, _serial, token, ..] => format!("{token} ({manufacturer} {model})"),
+            _ => self.id.clone(),
+        }
+    }
+}
+
+fn unescape(part: &str) -> String {
+    let bytes = part.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\'
+            && bytes.get(i + 1) == Some(&b'x')
+            && let Some(Ok(b)) = part.get(i + 2..i + 4).map(|h| u8::from_str_radix(h, 16))
+        {
+            out.push(b);
+            i += 4;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 struct Pending {

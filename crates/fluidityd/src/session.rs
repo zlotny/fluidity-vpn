@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use fluidity_config::Document;
 use fluidity_config::settings::Settings;
-use fluidity_ipc::{ConnectOptions, LogEntry, Prompt, Reply, SessionInfo, SessionState, StaticChallengePrompt};
+use fluidity_ipc::{ChoiceOption, ConnectOptions, LogEntry, Prompt, Reply, SessionInfo, SessionState, StaticChallengePrompt};
 use fluidity_mgmt::{
     Client as Mgmt, DynamicChallenge, Event as MgmtEvent, Need, PasswordRequest, Signal, State, StaticChallenge,
     static_challenge_password,
@@ -16,6 +16,7 @@ use tokio::sync::mpsc;
 
 use crate::daemon::{Command, Daemon};
 use crate::netconfig::{self, Inputs};
+use crate::obfs;
 use crate::openvpn;
 
 const RECONNECT_DELAYS: [u64; 6] = [2, 5, 10, 20, 40, 60];
@@ -75,6 +76,7 @@ struct Session {
     time_machine_held: bool,
     holds: usize,
     release_at: Option<tokio::time::Instant>,
+    obfs: Option<Child>,
 }
 
 pub fn spawn(daemon: Arc<Daemon>, spec: Spec, owner: u32, commands: mpsc::UnboundedReceiver<Command>) {
@@ -101,6 +103,7 @@ pub fn spawn(daemon: Arc<Daemon>, spec: Spec, owner: u32, commands: mpsc::Unboun
         time_machine_held: false,
         holds: 0,
         release_at: None,
+        obfs: None,
     };
     tokio::spawn(session.run());
 }
@@ -239,6 +242,9 @@ impl Session {
         if self.pending.take().is_some() {
             self.daemon.prompt(self.spec.generation, &self.spec.id, None).await;
         }
+        if let Some(mut child) = self.obfs.take() {
+            let _ = child.kill().await;
+        }
         self.info.connected_since = None;
         self.info.bytes_in = 0;
         self.info.bytes_out = 0;
@@ -257,6 +263,33 @@ impl Session {
             std::fs::write(dir.join(name), data)?;
         }
         Ok(())
+    }
+
+    async fn start_obfuscation(&mut self, dir: &Path) -> Result<(), String> {
+        let Some(method) = self.settings.obfuscation else {
+            return Ok(());
+        };
+        let binary = tokio::task::spawn_blocking(obfs::discover)
+            .await
+            .unwrap_or_default()
+            .ok_or("Obfuscation needs lyrebird, which is not installed")?;
+        let state = dir.join("pt-state");
+        std::fs::create_dir_all(&state).map_err(|e| e.to_string())?;
+        let (child, port) = obfs::start(&binary, method, &state).await?;
+        self.obfs = Some(child);
+        self.log("info", format!("Obfuscation ({}) on 127.0.0.1:{port}", method.as_str()))
+            .await;
+        let args = obfs::transport_args(method, self.settings.obfuscation_key.as_deref());
+        let document = obfs::rewrite(&self.spec.document, port, !args.is_empty());
+        let write = || -> std::io::Result<()> {
+            std::fs::write(dir.join(fluidity_config::CONFIG_FILE), document.to_string())?;
+            if !args.is_empty() {
+                let (user, pass) = obfs::socks_credentials(&args);
+                std::fs::write(dir.join(obfs::AUTH_FILE), format!("{user}\n{pass}\n"))?;
+            }
+            Ok(())
+        };
+        write().map_err(|e| format!("Cannot prepare connection files: {e}"))
     }
 
     async fn launch(&self, dir: &Path, socket: &Path) -> Result<Child, String> {
@@ -366,6 +399,9 @@ impl Session {
             return Outcome::Exited {
                 error: Some(format!("Cannot prepare connection files: {err}")),
             };
+        }
+        if let Err(error) = self.start_obfuscation(&dir).await {
+            return Outcome::Exited { error: Some(error) };
         }
         let socket = dir.join("mgmt.sock");
         let mut child = match self.launch(&dir, &socket).await {
@@ -527,6 +563,30 @@ impl Session {
                         self.spec.generation,
                         &self.spec.id,
                         Some(Prompt::NeedOk { name, message }),
+                    )
+                    .await;
+            }
+            MgmtEvent::NeedStr { name, message } if name == "pkcs11-id-request" => {
+                let options: Vec<ChoiceOption> = mgmt
+                    .pkcs11_ids()
+                    .await
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|id| ChoiceOption {
+                        label: id.label(),
+                        value: id.id,
+                    })
+                    .collect();
+                if options.is_empty() {
+                    self.log("error", "No PKCS#11 tokens found. Connect the token and try again.")
+                        .await;
+                }
+                self.pending = Some(Pending::NeedStr { name: name.clone() });
+                self.daemon
+                    .prompt(
+                        self.spec.generation,
+                        &self.spec.id,
+                        Some(Prompt::Choice { name, message, options }),
                     )
                     .await;
             }

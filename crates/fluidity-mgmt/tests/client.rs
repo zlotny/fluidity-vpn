@@ -126,7 +126,9 @@ async fn proxy_pkcs11_and_updown() {
     server.send(">PKCS11ID-COUNT:1\n").await;
     server.expect("pkcs11-id-get 0").await;
     server.send(">PKCS11ID-ENTRY:'0', ID:'abc', BLOB:'xyz'\n").await;
-    assert_eq!(task.await.unwrap(), ["'0', ID:'abc', BLOB:'xyz'"]);
+    let ids = task.await.unwrap();
+    assert_eq!(ids.len(), 1);
+    assert_eq!((ids[0].id.as_str(), ids[0].blob.as_str()), ("abc", "xyz"));
 
     server
         .send(">UPDOWN:UP\n>UPDOWN:ENV,dev=utun5\n>UPDOWN:ENV,ifconfig_local=10.0.0.2\n>UPDOWN:ENV,END\n")

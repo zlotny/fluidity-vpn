@@ -99,6 +99,7 @@ struct PromptView: View {
         case .needOk: return "Confirmation required"
         case .needStr: return "Input required"
         case .webAuth: return "Open the browser to authenticate"
+        case .choice: return "Choose a certificate"
         }
     }
 
@@ -106,6 +107,7 @@ struct PromptView: View {
         switch prompt {
         case .challenge(_, let text, _): return text
         case .needOk(_, let message), .needStr(_, let message): return message
+        case .choice(_, _, let options) where options.isEmpty: return "No tokens were found. Connect your token and try again."
         case .credentials(_, let sc, _):
             if let splitter, sc != nil, !splitter.text.isEmpty { return "Enter your password, then \(splitter.text), separated by \"\(splitter.delimiter)\"." }
             return nil
@@ -134,6 +136,7 @@ struct PromptView: View {
         switch prompt {
         case .credentials: return !username.isEmpty
         case .needOk: return true
+        case .choice(_, _, let options): return !options.isEmpty
         default: return true
         }
     }
@@ -153,6 +156,11 @@ struct PromptView: View {
                 if echo { TextField("Response", text: $response) } else { SecureField("Response", text: $response) }
             case .needStr:
                 TextField("Value", text: $response)
+            case .choice(_, _, let options):
+                Picker("Certificate", selection: $response) {
+                    ForEach(options, id: \.value) { Text($0.label).tag($0.value) }
+                }
+                .onAppear { if response.isEmpty { response = options.first?.value ?? "" } }
             default:
                 EmptyView()
             }
@@ -176,7 +184,7 @@ struct PromptView: View {
             finish(.password(realm: realm, password: response), false)
         case .needOk(let name, _):
             finish(.needOk(name: name, ok: ok), false)
-        case .needStr(let name, _):
+        case .needStr(let name, _), .choice(let name, _, _):
             finish(.needStr(name: name, value: response), false)
         case .webAuth:
             finish(.cancel, false)

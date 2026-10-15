@@ -90,6 +90,11 @@ struct SessionInfo: Codable, Equatable {
     var lastError: String?
 }
 
+struct ChoiceOption: Codable, Equatable, Hashable {
+    var value: String
+    var label: String
+}
+
 struct StaticChallengePrompt: Codable, Equatable {
     var text: String
     var echo: Bool
@@ -102,8 +107,9 @@ enum Prompt: Codable, Equatable {
     case needOk(name: String, message: String)
     case needStr(name: String, message: String)
     case webAuth(url: String)
+    case choice(name: String, message: String, options: [ChoiceOption])
 
-    private enum Keys: String, CodingKey { case type, realm, staticChallenge, retry, text, echo, name, message, url }
+    private enum Keys: String, CodingKey { case type, realm, staticChallenge, retry, text, echo, name, message, url, options }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -123,6 +129,10 @@ enum Prompt: Codable, Equatable {
             self = .needOk(name: try c.decode(String.self, forKey: .name), message: try c.decode(String.self, forKey: .message))
         case "need_str":
             self = .needStr(name: try c.decode(String.self, forKey: .name), message: try c.decode(String.self, forKey: .message))
+        case "choice":
+            self = .choice(
+                name: try c.decode(String.self, forKey: .name), message: try c.decode(String.self, forKey: .message),
+                options: try c.decode([ChoiceOption].self, forKey: .options))
         default: self = .webAuth(url: try c.decode(String.self, forKey: .url))
         }
     }
@@ -154,6 +164,11 @@ enum Prompt: Codable, Equatable {
         case .webAuth(let url):
             try c.encode("web_auth", forKey: .type)
             try c.encode(url, forKey: .url)
+        case .choice(let name, let message, let options):
+            try c.encode("choice", forKey: .type)
+            try c.encode(name, forKey: .name)
+            try c.encode(message, forKey: .message)
+            try c.encode(options, forKey: .options)
         }
     }
 }

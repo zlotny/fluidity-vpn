@@ -13,6 +13,10 @@ if [ -d "$resources/openvpn" ]; then
   rm -rf "$dest/openvpn"
   mv "$dest/openvpn.new" "$dest/openvpn"
 fi
+if [ -x "$resources/lyrebird" ]; then
+  cp "$resources/lyrebird" "$dest/lyrebird.new"
+  mv "$dest/lyrebird.new" "$dest/lyrebird"
+fi
 cp "$resources/fluidityd" "$dest/fluidityd.new"
 mv "$dest/fluidityd.new" "$dest/fluidityd"
 cp "$resources/uninstall-helper.sh" "$dest/uninstall.sh"

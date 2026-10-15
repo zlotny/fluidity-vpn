@@ -52,6 +52,14 @@ keepalive 5 30
 verb 3
 EOS
 openvpn --config server.conf --daemon --log /tmp/server.log --writepid /tmp/server.pid
+sed -e 's/^port 1194/port 1195/' -e 's/^proto udp/proto tcp-server/' -e 's/^server 10.99.0.0/server 10.98.0.0/' \
+  server.conf > server-tcp.conf
+openvpn --config server-tcp.conf --daemon --log /tmp/server-tcp.log --writepid /tmp/server-tcp.pid
+mkdir -p /pt-server
+TOR_PT_MANAGED_TRANSPORT_VER=1 TOR_PT_SERVER_TRANSPORTS=obfs4 TOR_PT_SERVER_BINDADDR=obfs4-127.0.0.1:2443 \
+  TOR_PT_ORPORT=127.0.0.1:1195 TOR_PT_STATE_LOCATION=/pt-server obfs4proxy > /tmp/pt-server.log 2>&1 < /dev/zero &
+for _ in $(seq 50); do [ -s /pt-server/obfs4_bridgeline.txt ] && break; sleep 0.1; done
+obfs4_cert=$(sed -n 's/.*cert=\([^ ]*\).*/\1/p' /pt-server/obfs4_bridgeline.txt | tail -n 1)
 
 client_conf() {
   cat <<EOS
@@ -76,8 +84,10 @@ cp $pki/ca.crt $pki/client.crt $pki/client.key $pki/tc.key .
 client_conf "E2E" > e2e.ovpn
 { client_conf "Unsafe"; echo "up /bin/true"; } > unsafe.ovpn
 { client_conf "Challenge"; echo 'static-challenge "Enter OTP" 1'; } > challenge.ovpn
+{ client_conf "Obfs" | sed 's/^remote 127.0.0.1 1194/remote 127.0.0.1 2443/'
+  echo "#fluidity obfs obfs4"; echo "#fluidity obfskey $obfs4_cert"; } > obfs.ovpn
 
-fluidityd --log debug > /tmp/fluidityd.log 2>&1 &
+FLUIDITY_LYREBIRD=/usr/bin/obfs4proxy fluidityd --log debug > /tmp/fluidityd.log 2>&1 &
 for _ in $(seq 50); do [ -S /var/run/fluidityd.sock ] && break; sleep 0.1; done
 
 pass=0
@@ -86,7 +96,7 @@ check() {
   if eval "$2"; then echo "PASS $1"; pass=$((pass + 1)); else echo "FAIL $1"; fail=$((fail + 1)); fi
 }
 
-fluidity import e2e.ovpn unsafe.ovpn challenge.ovpn
+fluidity import e2e.ovpn unsafe.ovpn challenge.ovpn obfs.ovpn
 check "list shows imported connections" "fluidity list | grep -q E2E"
 
 cp /etc/resolv.conf /tmp/resolv.before
@@ -108,6 +118,10 @@ check "unsafe command rejected" "! fluidity connect Unsafe 2>&1 | grep -q '^Conn
 check "unsafe error message" "fluidity connect Unsafe 2>&1 | grep -q 'is not allowed'"
 
 check "static challenge" "printf 'alice\nsecret\n123456\n' | timeout 60 fluidity connect Challenge"
+fluidity disconnect --all
+for _ in $(seq 100); do fluidity status | grep -q 'No active' && break; sleep 0.1; done
+
+check "obfs4 obfuscation" "printf 'alice\nsecret\n' | timeout 60 fluidity connect Obfs && ping -c 2 -W 2 10.98.0.1 >/dev/null"
 fluidity disconnect --all
 for _ in $(seq 100); do fluidity status | grep -q 'No active' && break; sleep 0.1; done
 

@@ -141,6 +141,24 @@ async fn handle(daemon: &Arc<Daemon>, uid: u32, request: Request) -> Result<Payl
                     v.directive()
                 ));
             }
+            if !allow_unsafe {
+                let names: Vec<&str> = bundle.files.keys().map(String::as_str).collect();
+                if let Some(path) = safety::foreign_files(&document, &names).first() {
+                    return Err(format!(
+                        "The file \"{path}\" is not part of the connection. Import the connection again with its files."
+                    ));
+                }
+                for args in document.directives("pkcs11-providers") {
+                    for provider in args {
+                        let path = std::path::Path::new(provider);
+                        if !path.is_absolute() || !crate::openvpn::trusted(path) {
+                            return Err(format!(
+                                "The PKCS#11 provider \"{provider}\" must be a system library owned by root."
+                            ));
+                        }
+                    }
+                }
+            }
             let mut files = Vec::new();
             for (name, data) in bundle.files {
                 if !valid_file_name(&name) {

@@ -1,0 +1,6 @@
+openvpn-2.7 https://github.com/OpenVPN/openvpn/releases/download/v2.7.8/openvpn-2.7.8.tar.gz c070d1d2440b5a6fca6c2c68645c98cd492116ac36ef4f0946177115532c8e36
+openvpn-2.6 https://github.com/OpenVPN/openvpn/releases/download/v2.6.23/openvpn-2.6.23.tar.gz 4041c709162bec1325abf5aa8cf27a255cc477c634b15ee310411c701fc40a96
+openssl https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
+lzo https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz c0f892943208266f9b6543b3ae308fab6284c5c90e627931446fb49b4221a072
+lz4 https://github.com/lz4/lz4/releases/download/v1.10.0/lz4-1.10.0.tar.gz 537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b
+pkcs11-helper https://github.com/OpenSC/pkcs11-helper/releases/download/pkcs11-helper-1.31.0/pkcs11-helper-1.31.0.tar.bz2 46f0067bccd7be2c28f88b8bca775172b9e52fb6fc1280b44ca8bb831433fef9

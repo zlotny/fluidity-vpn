@@ -108,6 +108,17 @@ pub enum Prompt {
     WebAuth {
         url: String,
     },
+    Choice {
+        name: String,
+        message: String,
+        options: Vec<ChoiceOption>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChoiceOption {
+    pub value: String,
+    pub label: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

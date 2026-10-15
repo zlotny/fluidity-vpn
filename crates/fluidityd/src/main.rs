@@ -1,6 +1,7 @@
 mod daemon;
 mod net;
 mod netconfig;
+mod obfs;
 mod openvpn;
 mod server;
 mod session;

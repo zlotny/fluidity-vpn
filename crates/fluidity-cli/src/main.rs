@@ -494,5 +494,25 @@ fn answer(conn: &fluidity_core::Connection, scope: &str, prompt: Prompt, save: b
             open_url(&url);
             return Ok(None);
         }
+        Prompt::Choice { name, message, options } => {
+            if options.is_empty() {
+                return Err(format!("{message}: nothing to choose from"));
+            }
+            eprintln!("{message}");
+            for (i, option) in options.iter().enumerate() {
+                eprintln!("  {}. {}", i + 1, option.label);
+            }
+            let answer = ask(&format!("Choose 1-{}: ", options.len()), false)?;
+            let index = answer
+                .trim()
+                .parse::<usize>()
+                .ok()
+                .filter(|n| (1..=options.len()).contains(n))
+                .ok_or("invalid choice")?;
+            Reply::NeedStr {
+                name,
+                value: options[index - 1].value.clone(),
+            }
+        }
     }))
 }

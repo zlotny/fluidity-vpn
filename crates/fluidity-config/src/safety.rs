@@ -27,6 +27,9 @@ const UNSAFE: &[&str] = &[
     "group",
     "daemon",
     "config",
+    "engine",
+    "providers",
+    "capath",
 ];
 
 const RESERVED: &[&str] = &[
@@ -87,9 +90,26 @@ pub fn check(doc: &Document) -> Vec<Violation> {
         .collect()
 }
 
+pub fn foreign_files<'a>(doc: &'a Document, bundled: &[&str]) -> Vec<&'a str> {
+    crate::files::file_refs(doc)
+        .into_iter()
+        .filter_map(|r| match &doc.items[r.item] {
+            Item::Directive { args, .. } => args.get(r.arg).map(String::as_str),
+            _ => None,
+        })
+        .filter(|path| !bundled.contains(path))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finds_files_outside_bundle() {
+        let doc = Document::parse("ca ca.crt\ncert /etc/master.passwd\nkey ../k.pem\n<tls-crypt>\nX\n</tls-crypt>\n").unwrap();
+        assert_eq!(foreign_files(&doc, &["ca.crt"]), ["/etc/master.passwd", "../k.pem"]);
+    }
 
     #[test]
     fn flags_script_and_file_writing_commands() {

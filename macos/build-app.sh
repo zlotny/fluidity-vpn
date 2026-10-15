@@ -42,7 +42,10 @@ cp "$libdir/fluidityd" "$app/Contents/Resources/fluidityd"
 cp "$here/Resources/Fluidity.sdef" "$here/Resources/org.fluidityvpn.daemon.plist" \
   "$here/Resources/install-helper.sh" "$here/Resources/uninstall-helper.sh" "$app/Contents/Resources/"
 
-if [ -n "${OPENVPN_DIR:-}" ]; then
+OPENVPN_DIR=${OPENVPN_DIR:-$root/target/openvpn-dist}
+LYREBIRD=${LYREBIRD:-$root/target/lyrebird-dist/lyrebird}
+[ -x "$LYREBIRD" ] && cp "$LYREBIRD" "$app/Contents/Resources/lyrebird"
+if [ -d "$OPENVPN_DIR" ]; then
   for dir in "$OPENVPN_DIR"/*/; do
     v=$(basename "$dir")
     mkdir -p "$app/Contents/Resources/openvpn/$v"
@@ -66,6 +69,7 @@ sign() {
   fi
 }
 find "$app/Contents/Resources/openvpn" -type f -perm +111 2>/dev/null | while read -r f; do sign "$f"; done
+[ -f "$app/Contents/Resources/lyrebird" ] && sign "$app/Contents/Resources/lyrebird"
 sign "$app/Contents/Resources/fluidityd"
 sign "$app/Contents/Helpers/fluidity"
 sign --entitlements "$here/Resources/Fluidity.entitlements" "$app"
