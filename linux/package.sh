@@ -38,7 +38,7 @@ Architecture: $arch
 Maintainer: The Fluidity Contributors <fluidity@users.noreply.github.com>
 Section: net
 Priority: optional
-Homepage: https://github.com/fluidity-vpn/fluidity
+Homepage: https://github.com/zlotny/fluidity-vpn
 Depends: openvpn (>= 2.5), libgtk-4-1 (>= 4.14), libadwaita-1-0 (>= 1.5), libdbus-1-3, libc6
 Recommends: obfs4proxy | lyrebird
 Installed-Size: $(du -sk "$deb/usr" | cut -f1)
@@ -84,7 +84,7 @@ Version: $version
 Release: 1
 Summary: Free and open source OpenVPN client
 License: GPL-3.0-or-later
-URL: https://github.com/fluidity-vpn/fluidity
+URL: https://github.com/zlotny/fluidity-vpn
 Requires: openvpn >= 2.5
 Requires: gtk4 >= 4.14
 Requires: libadwaita >= 1.5

@@ -704,5 +704,5 @@ enum AppInfo {
         return FileManager.default.isExecutableFile(atPath: path) ? path : nil
     }
 
-    static let website = URL(string: "https://github.com/fluidityvpn/fluidity")!
+    static let website = URL(string: "https://github.com/zlotny/fluidity-vpn")!
 }

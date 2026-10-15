@@ -1,6 +1,6 @@
 [Unit]
 Description=Fluidity VPN service
-Documentation=https://github.com/fluidity-vpn/fluidity
+Documentation=https://github.com/zlotny/fluidity-vpn
 After=network.target
 Wants=network.target
 

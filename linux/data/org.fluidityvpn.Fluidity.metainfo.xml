@@ -9,8 +9,8 @@
     <p>Fluidity is a free and open source OpenVPN client. It manages connections, folders, saved passwords, scripts, proxies and traffic obfuscation from one window and the system tray.</p>
   </description>
   <launchable type="desktop-id">org.fluidityvpn.Fluidity.desktop</launchable>
-  <url type="homepage">https://github.com/fluidity-vpn/fluidity</url>
-  <url type="bugtracker">https://github.com/fluidity-vpn/fluidity/issues</url>
+  <url type="homepage">https://github.com/zlotny/fluidity-vpn</url>
+  <url type="bugtracker">https://github.com/zlotny/fluidity-vpn/issues</url>
   <developer id="org.fluidityvpn">
     <name>The Fluidity Contributors</name>
   </developer>

@@ -78,7 +78,7 @@ enum Keychain {
 @MainActor
 final class Updater {
     static let shared = Updater()
-    static let feed = URL(string: "https://api.github.com/repos/fluidityvpn/fluidity/releases")!
+    static let feed = URL(string: "https://api.github.com/repos/zlotny/fluidity-vpn/releases")!
 
     private struct Release: Decodable {
         let tagName: String

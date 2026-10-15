@@ -21,7 +21,7 @@ use gtk::{gio, glib};
 use crate::app::App;
 use crate::prefs::APP_ID;
 
-const WEBSITE: &str = "https://github.com/fluidity-vpn/fluidity";
+const WEBSITE: &str = "https://github.com/zlotny/fluidity-vpn";
 
 thread_local! {
     static APP: OnceCell<Rc<App>> = const { OnceCell::new() };
