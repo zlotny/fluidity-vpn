@@ -66,6 +66,11 @@ key Return
 check "connects from the GUI" "wait_for 'fluidity status | grep -q Connected'"
 ping -c 3 -i 0.3 10.99.0.1 >/dev/null 2>&1 || true
 shot connected 3
+key ctrl+r
+sleep 10
+xdotool mousemove --window "$win" 500 400 click --repeat 15 5
+shot check 1
+xdotool click --repeat 15 4
 key alt+3
 check "usage page counts traffic" "wait_for 'fluidity usage Office | grep -qv \"0 B down\"'"
 shot usage 2
