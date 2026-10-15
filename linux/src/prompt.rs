@@ -11,7 +11,7 @@ pub type Completion = Box<dyn Fn(Reply, bool)>;
 
 pub fn dismiss(app: &App, id: &str) {
     let dialog = app.prompts.borrow_mut().remove(id);
-    if let Some(dialog) = dialog {
+    if let Some((dialog, _)) = dialog {
         dialog.set_close_response("dismissed");
         dialog.close();
     }
@@ -93,6 +93,9 @@ pub fn present(
     splitter: Option<StaticChallengePassword>,
     completion: Completion,
 ) {
+    if app.prompts.borrow().get(id).is_some_and(|(_, shown)| *shown == prompt) {
+        return;
+    }
     dismiss(app, id);
     if let Prompt::WebAuth { url } = &prompt {
         gtk::UriLauncher::new(url).launch(Some(&app.parent()), gtk::gio::Cancellable::NONE, |_| {});
@@ -189,6 +192,7 @@ pub fn present(
         user.connect_changed(update);
     }
 
+    let shown = prompt.clone();
     let fields = Rc::new(fields);
     let completion = Rc::new(RefCell::new(Some(completion)));
     let app_weak = Rc::downgrade(app);
@@ -196,7 +200,7 @@ pub fn present(
     dialog.connect_response(None, move |dialog, response| {
         if let Some(app) = app_weak.upgrade()
             && let Ok(mut prompts) = app.prompts.try_borrow_mut()
-            && prompts.get(&id_owned).is_some_and(|d| d == dialog)
+            && prompts.get(&id_owned).is_some_and(|(d, _)| d == dialog)
         {
             prompts.remove(&id_owned);
         }
@@ -262,7 +266,7 @@ pub fn present(
         };
         done(reply, remember);
     });
-    app.prompts.borrow_mut().insert(id.to_string(), dialog.clone());
+    app.prompts.borrow_mut().insert(id.to_string(), (dialog.clone(), shown));
     let window = app.parent();
     window.present();
     dialog.present(Some(&window));

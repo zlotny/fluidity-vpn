@@ -45,6 +45,7 @@ where
             }
         };
         let seq = message.seq;
+        let replay = matches!(message.request, Request::List) && forwarder.is_some();
         if matches!(message.request, Request::Subscribe) && forwarder.is_none() {
             forwarder = Some(spawn_forwarder(daemon.events.subscribe(), out_tx.clone(), uid));
         }
@@ -54,6 +55,11 @@ where
         };
         if out_tx.send(reply).is_err() {
             break;
+        }
+        if replay {
+            for event in pending_prompts(&daemon, uid).await {
+                let _ = out_tx.send(ServerMessage::Event(event));
+            }
         }
     }
 
@@ -82,6 +88,17 @@ fn spawn_forwarder(
             }
         }
     })
+}
+
+async fn pending_prompts(daemon: &Daemon, uid: u32) -> Vec<Event> {
+    daemon
+        .sessions
+        .lock()
+        .await
+        .iter()
+        .filter(|(_, e)| can_access(uid, e.owner))
+        .filter_map(|(id, e)| e.prompt.clone().map(|prompt| Event::Prompt { id: id.clone(), prompt }))
+        .collect()
 }
 
 fn can_access(uid: u32, owner: u32) -> bool {
@@ -115,14 +132,6 @@ async fn handle(daemon: &Arc<Daemon>, uid: u32, request: Request) -> Result<Payl
                 .map(|e| e.info.clone())
                 .collect();
             list.sort_by(|a, b| a.id.cmp(&b.id));
-            let prompts: Vec<Event> = sessions
-                .iter()
-                .filter(|(_, e)| can_access(uid, e.owner))
-                .filter_map(|(id, e)| e.prompt.clone().map(|prompt| Event::Prompt { id: id.clone(), prompt }))
-                .collect();
-            for prompt in prompts {
-                let _ = daemon.events.send((uid, prompt));
-            }
             Ok(Payload::Sessions(list))
         }
         Request::Connect { id, bundle, options } => {

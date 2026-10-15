@@ -38,7 +38,7 @@ pub struct App {
     network_up: Cell<bool>,
     launched: Cell<bool>,
     idle_timer: RefCell<Option<glib::SourceId>>,
-    pub prompts: RefCell<HashMap<String, adw::AlertDialog>>,
+    pub prompts: RefCell<HashMap<String, (adw::AlertDialog, Prompt)>>,
 }
 
 impl App {
