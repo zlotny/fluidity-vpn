@@ -546,6 +546,12 @@ struct WiFiSection: View {
             }
         } header: {
             Text("Wi-Fi")
+        } footer: {
+            if manager.preferences.autoConnect == nil {
+                Text("Start a connection when you join a Wi-Fi network you do not trust, such as in a café or hotel.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
         if manager.preferences.autoConnect != nil {
             trusted

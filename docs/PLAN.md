@@ -25,6 +25,7 @@ Fluidity is a free and open source OpenVPN client for macOS, Windows, and Linux.
 - DNS modes: Automatic, Full, Split, Disabled. Server can push the mode. Ignore pushed DNS. WINS.
 - Routes: automatic, all traffic, all IPv4, all IPv6, custom routes, default gateway.
 - IPv6 leak protection (block IPv6 on IPv4-only tunnels).
+- Kill switch: block traffic outside the VPN while connected and after an unexpected drop. Optional LAN access.
 - Proxy to reach the server: HTTP, SOCKS, system-wide, with auth.
 - Proxy settings on the VPN interface: PAC, HTTP, HTTPS, SOCKS.
 - Obfuscation: obfs2, obfs3, obfs4, ScrambleSuit via lyrebird.
@@ -37,12 +38,14 @@ Fluidity is a free and open source OpenVPN client for macOS, Windows, and Linux.
 - Disable Time Machine while connected (macOS).
 - Connect at app launch per connection. Start at login.
 - Reset network interfaces on disconnect.
+- Connect on untrusted Wi-Fi networks, disconnect on trusted ones.
 - Unsafe OpenVPN command filter. Allowing unsafe commands needs admin rights.
 
 **Interface**
 - Status icon with menu: per-connection state, quick stats, traffic graph.
 - Icon sets. Address display (IPv4/IPv6). Traffic display (rates or totals). Graph style.
 - Details window: status, client IP, duration, traffic graph, totals, log. Always-on-top option.
+- Connection check: public IP, location and server latency (macOS). Data usage history for 30 days.
 - Notifications on state changes. Welcome window on first run.
 
 **Automation**
@@ -50,6 +53,7 @@ Fluidity is a free and open source OpenVPN client for macOS, Windows, and Linux.
 - AppleScript dictionary (macOS): `connect`, `disconnect`, `connectall`, `disconnectall`, connection properties (`name`, `state`, `IPv4Address`, `IPv6Address`, `serverAddress`, `networkInterface`, `timeConnected`).
 - PowerShell/COM (Windows), D-Bus (Linux). Command line control on all platforms.
 - Custom menu items.
+- `fluidity://connect`, `disconnect` and `toggle` links. Global toggle shortcut (macOS).
 
 **Enterprise**
 - Preconfigured deployment (connections overwrite/append/prompt, preferences, menu items).
@@ -108,6 +112,8 @@ OpenVPN runs with `--management <socket> unix --management-hold --management-que
 | Tunnel | utun | tun/tap | ovpn-dco-win / wintun / tap-windows6 |
 | DNS full/split | SCDynamicStore `State:/Network/Service/<id>/DNS` with `SupplementalMatchDomains` | systemd-resolved D-Bus, resolvconf fallback | NRPT rules + interface DNS |
 | IPv6 block | pf anchor | nftables table | WFP filters |
+| Kill switch | pf anchor | nftables table | firewall default outbound block |
+| Wi-Fi name | CoreWLAN | nmcli | netsh wlan |
 | Proxy on VPN iface | SCDynamicStore `Proxies` | desktop settings (best effort) | WinINet per-connection |
 | Credentials | Keychain | Secret Service | Credential Manager |
 | Service | launchd daemon | systemd unit + polkit | Windows service |

@@ -146,7 +146,10 @@ struct TrafficPane: View {
                 legend("Out", .green, samples.last?.outRate)
                 Spacer()
                 if let s = session {
-                    Text("Total ↓\(Format.bytes(Double(s.bytesIn))) ↑\(Format.bytes(Double(s.bytesOut)))")
+                    Text("↓ \(Format.bytes(Double(s.bytesIn)))  ↑ \(Format.bytes(Double(s.bytesOut)))")
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
                         .foregroundStyle(.secondary)
                 }
             }
@@ -164,7 +167,7 @@ struct TrafficPane: View {
     private func legend(_ title: String, _ color: Color, _ rate: Double?) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 12, height: 4)
-            Text("\(title): \(Format.bytes(rate ?? 0))/s").monospacedDigit()
+            Text("\(title): \(Format.bytes(rate ?? 0))/s").monospacedDigit().lineLimit(1)
         }
     }
 }
