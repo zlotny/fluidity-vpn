@@ -116,6 +116,7 @@ pub struct LaunchSpec<'a> {
     pub gui_version: &'a str,
     pub compat_mode: Option<&'a str>,
     pub query_proxy: bool,
+    pub external_identity: bool,
 }
 
 pub fn arguments(spec: &LaunchSpec, has_verb: bool) -> Vec<String> {
@@ -141,6 +142,19 @@ pub fn arguments(spec: &LaunchSpec, has_verb: bool) -> Vec<String> {
         .map(|s| s.to_string()),
     );
     args.push(spec.gui_version.to_string());
+    if spec.external_identity {
+        args.extend(
+            [
+                "--management-external-key",
+                "pkcs1",
+                "pss",
+                "--management-external-cert",
+                "fluidity",
+            ]
+            .iter()
+            .map(|s| s.to_string()),
+        );
+    }
     if spec.query_proxy {
         args.push("--management-query-proxy".into());
     }
@@ -186,11 +200,30 @@ mod tests {
                 gui_version: "Fluidity_0.1.0",
                 compat_mode: Some("2.4.0"),
                 query_proxy: false,
+                external_identity: false,
             },
             false,
         );
         let line = args.join(" ");
         assert!(line.starts_with("--config config.conf --management /run/x/mgmt.sock unix --management-hold"));
         assert!(line.ends_with("--compat-mode 2.4.0 --log /dev/null --verb 3"));
+        assert!(!line.contains("external"));
+    }
+
+    #[test]
+    fn requests_external_identity() {
+        let sock = PathBuf::from("/run/x/mgmt.sock");
+        let args = arguments(
+            &LaunchSpec {
+                management_socket: &sock,
+                gui_version: "Fluidity_0.1.0",
+                compat_mode: None,
+                query_proxy: false,
+                external_identity: true,
+            },
+            true,
+        );
+        let line = args.join(" ");
+        assert!(line.contains("--management-external-key pkcs1 pss --management-external-cert fluidity"));
     }
 }

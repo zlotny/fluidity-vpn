@@ -244,6 +244,29 @@ fn dispatch(method: &str, params: &Value) -> Result<Value, String> {
             )?;
             Ok(Value::Null)
         }
+        "identity.list" => Ok(json!(fluidity_core::identity::names())),
+        "identity.certificate" => {
+            #[derive(Deserialize)]
+            struct P {
+                identity: String,
+            }
+            let p: P = parse(params)?;
+            Ok(json!(fluidity_core::identity::certificate(&p.identity)?))
+        }
+        "identity.sign" => {
+            #[derive(Deserialize)]
+            struct P {
+                identity: String,
+                data: String,
+                algorithm: String,
+            }
+            let p: P = parse(params)?;
+            Ok(json!(fluidity_core::identity::sign(
+                &p.identity,
+                &p.data,
+                &p.algorithm
+            )?))
+        }
         "credentials.secret" => {
             #[derive(Deserialize)]
             struct P {

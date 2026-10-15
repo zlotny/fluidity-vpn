@@ -100,6 +100,7 @@ struct PromptView: View {
         case .needStr: return "Input required"
         case .webAuth: return "Open the browser to authenticate"
         case .choice: return "Choose a certificate"
+        case .certificate, .sign: return "Using keychain identity"
         }
     }
 
@@ -186,7 +187,7 @@ struct PromptView: View {
             finish(.needOk(name: name, ok: ok), false)
         case .needStr(let name, _), .choice(let name, _, _):
             finish(.needStr(name: name, value: response), false)
-        case .webAuth:
+        case .webAuth, .certificate, .sign:
             finish(.cancel, false)
         }
     }

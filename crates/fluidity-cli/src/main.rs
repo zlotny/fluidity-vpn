@@ -63,6 +63,8 @@ enum Commands {
     ForgetCredentials { name: Option<String> },
     #[command(about = "List available OpenVPN versions")]
     Versions,
+    #[command(about = "List certificate identities in the system keychain")]
+    Identities,
     #[command(about = "Show or change service settings (changes need root)")]
     SystemSettings {
         #[arg(long)]
@@ -303,6 +305,11 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
                 }
             }
         },
+        Commands::Identities => {
+            for name in fluidity_core::identity::names() {
+                println!("{name}");
+            }
+        }
         Commands::Versions => {
             let (client, _) = daemon().await?;
             if let fluidity_ipc::Payload::Versions(v) =
@@ -514,5 +521,15 @@ fn answer(conn: &fluidity_core::Connection, scope: &str, prompt: Prompt, save: b
                 value: options[index - 1].value.clone(),
             }
         }
+        Prompt::Certificate { identity } => Reply::Certificate {
+            pem: fluidity_core::identity::certificate(&identity)?,
+        },
+        Prompt::Sign {
+            identity,
+            data,
+            algorithm,
+        } => Reply::Signature {
+            signature: fluidity_core::identity::sign(&identity, &data, &algorithm)?,
+        },
     }))
 }

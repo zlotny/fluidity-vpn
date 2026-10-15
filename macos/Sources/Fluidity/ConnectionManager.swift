@@ -311,7 +311,34 @@ final class ConnectionManager: ObservableObject {
         return (try? Core.call("credentials.load", ScopeParam(scope: connection.credentialScope))) ?? SavedCredentials()
     }
 
+    private func useIdentity(_ id: String, _ prompt: Prompt) -> Bool {
+        let work: @Sendable () throws -> Reply
+        switch prompt {
+        case .certificate(let identity):
+            work = { .certificate(pem: try Core.call("identity.certificate", IdentityParam(identity: identity))) }
+        case .sign(let identity, let data, let algorithm):
+            work = { .signature(try Core.call("identity.sign", SignParam(identity: identity, data: data, algorithm: algorithm))) }
+        default:
+            return false
+        }
+        Task { [weak self] in
+            let result = await Task.detached { Result { try work() } }.value
+            self?.finishIdentity(id, result)
+        }
+        return true
+    }
+
+    private func finishIdentity(_ id: String, _ result: Result<Reply, Error>) {
+        switch result {
+        case .success(let reply): send(id, reply)
+        case .failure(let error):
+            if let connection = connections[id] { report(error, connection: connection) }
+            send(id, .cancel)
+        }
+    }
+
     private func answer(_ id: String, _ prompt: Prompt) {
+        if useIdentity(id, prompt) { return }
         guard let connection = connections[id] else {
             prompts.present(id: id, title: sessions[id]?.name ?? id, prompt: prompt, saved: SavedCredentials()) { [weak self] reply, _ in
                 self?.send(id, reply)

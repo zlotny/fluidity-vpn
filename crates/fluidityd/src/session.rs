@@ -56,6 +56,8 @@ enum Pending {
     NeedStr {
         name: String,
     },
+    Certificate,
+    Sign,
 }
 
 enum Outcome {
@@ -277,7 +279,13 @@ impl Session {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
         }
-        std::fs::write(dir.join(fluidity_config::CONFIG_FILE), self.spec.document.to_string())?;
+        let mut document = self.spec.document.clone();
+        if self.settings.system_identity.is_some() {
+            for name in ["cert", "key", "pkcs12", "pkcs11-id", "pkcs11-providers"] {
+                document.remove(name);
+            }
+        }
+        std::fs::write(dir.join(fluidity_config::CONFIG_FILE), document.to_string())?;
         for (name, data) in &self.spec.files {
             std::fs::write(dir.join(name), data)?;
         }
@@ -325,6 +333,7 @@ impl Session {
                 gui_version: &self.daemon.gui_version,
                 compat_mode: compat.as_deref(),
                 query_proxy: false,
+                external_identity: self.settings.system_identity.is_some(),
             },
             self.spec.document.has("verb"),
         );
@@ -434,6 +443,9 @@ impl Session {
             for line in history.lines() {
                 self.handle(&mgmt, MgmtEvent::parse("LOG", line)).await;
             }
+        }
+        if self.settings.system_identity.is_some() {
+            let _ = mgmt.version(3).await;
         }
         let _ = mgmt.command("state on").await;
         let _ = mgmt.bytecount(1).await;
@@ -626,6 +638,33 @@ impl Session {
                     self.log("info", msg.clone()).await;
                 }
             }
+            MgmtEvent::NeedCertificate(_) => {
+                let Some(identity) = self.settings.system_identity.clone() else {
+                    return false;
+                };
+                self.pending = Some(Pending::Certificate);
+                self.daemon
+                    .prompt(
+                        self.spec.generation,
+                        &self.spec.id,
+                        Some(Prompt::Certificate { identity }),
+                    )
+                    .await;
+            }
+            MgmtEvent::PkSign { data, algorithm } => {
+                let Some(identity) = self.settings.system_identity.clone() else {
+                    return false;
+                };
+                self.pending = Some(Pending::Sign);
+                let prompt = Prompt::Sign {
+                    identity,
+                    data,
+                    algorithm: algorithm.unwrap_or_default(),
+                };
+                self.daemon
+                    .prompt(self.spec.generation, &self.spec.id, Some(prompt))
+                    .await;
+            }
             MgmtEvent::UpDown { direction, env } => self.updown(&direction, &env).await,
             MgmtEvent::Remote { .. } => {
                 let _ = mgmt.remote(fluidity_mgmt::RemoteAction::Accept).await;
@@ -724,6 +763,8 @@ impl Session {
             }
             (Pending::NeedOk { name }, Reply::NeedOk { ok, .. }) => mgmt.need_ok(&name, ok).await.map(|_| ()),
             (Pending::NeedStr { name }, Reply::NeedStr { value, .. }) => mgmt.need_str(&name, &value).await.map(|_| ()),
+            (Pending::Certificate, Reply::Certificate { pem }) => mgmt.certificate(&pem).await.map(|_| ()),
+            (Pending::Sign, Reply::Signature { signature }) => mgmt.pk_signature(&signature).await.map(|_| ()),
             (pending, _) => {
                 self.pending = Some(pending);
                 return false;
@@ -790,5 +831,17 @@ impl Session {
             }
             Err(err) => self.log("error", format!("Network settings: {err}")).await,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn describes_reasons() {
+        assert_eq!(describe("SUCCESS"), "");
+        assert_eq!(describe("tls-error"), "TLS error");
+        assert_eq!(describe("custom"), "custom");
     }
 }

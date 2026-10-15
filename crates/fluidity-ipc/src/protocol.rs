@@ -77,6 +77,12 @@ pub enum Reply {
         name: String,
         value: String,
     },
+    Certificate {
+        pem: String,
+    },
+    Signature {
+        signature: String,
+    },
     Cancel,
 }
 
@@ -112,6 +118,14 @@ pub enum Prompt {
         name: String,
         message: String,
         options: Vec<ChoiceOption>,
+    },
+    Certificate {
+        identity: String,
+    },
+    Sign {
+        identity: String,
+        data: String,
+        algorithm: String,
     },
 }
 

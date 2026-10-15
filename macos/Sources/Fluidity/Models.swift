@@ -108,8 +108,10 @@ enum Prompt: Codable, Equatable {
     case needStr(name: String, message: String)
     case webAuth(url: String)
     case choice(name: String, message: String, options: [ChoiceOption])
+    case certificate(identity: String)
+    case sign(identity: String, data: String, algorithm: String)
 
-    private enum Keys: String, CodingKey { case type, realm, staticChallenge, retry, text, echo, name, message, url, options }
+    private enum Keys: String, CodingKey { case type, realm, staticChallenge, retry, text, echo, name, message, url, options, identity, data, algorithm }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -133,6 +135,11 @@ enum Prompt: Codable, Equatable {
             self = .choice(
                 name: try c.decode(String.self, forKey: .name), message: try c.decode(String.self, forKey: .message),
                 options: try c.decode([ChoiceOption].self, forKey: .options))
+        case "certificate": self = .certificate(identity: try c.decode(String.self, forKey: .identity))
+        case "sign":
+            self = .sign(
+                identity: try c.decode(String.self, forKey: .identity), data: try c.decode(String.self, forKey: .data),
+                algorithm: try c.decode(String.self, forKey: .algorithm))
         default: self = .webAuth(url: try c.decode(String.self, forKey: .url))
         }
     }
@@ -169,18 +176,28 @@ enum Prompt: Codable, Equatable {
             try c.encode(name, forKey: .name)
             try c.encode(message, forKey: .message)
             try c.encode(options, forKey: .options)
+        case .certificate(let identity):
+            try c.encode("certificate", forKey: .type)
+            try c.encode(identity, forKey: .identity)
+        case .sign(let identity, let data, let algorithm):
+            try c.encode("sign", forKey: .type)
+            try c.encode(identity, forKey: .identity)
+            try c.encode(data, forKey: .data)
+            try c.encode(algorithm, forKey: .algorithm)
         }
     }
 }
 
-enum Reply: Encodable {
+enum Reply: Encodable, Sendable {
     case credentials(realm: String, username: String, password: String, challengeResponse: String?)
     case password(realm: String, password: String)
     case needOk(name: String, ok: Bool)
     case needStr(name: String, value: String)
+    case certificate(pem: String)
+    case signature(String)
     case cancel
 
-    private enum Keys: String, CodingKey { case type, realm, username, password, challengeResponse, name, ok, value }
+    private enum Keys: String, CodingKey { case type, realm, username, password, challengeResponse, name, ok, value, pem, signature }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: Keys.self)
@@ -203,6 +220,12 @@ enum Reply: Encodable {
             try c.encode("need_str", forKey: .type)
             try c.encode(name, forKey: .name)
             try c.encode(value, forKey: .value)
+        case .certificate(let pem):
+            try c.encode("certificate", forKey: .type)
+            try c.encode(pem, forKey: .pem)
+        case .signature(let signature):
+            try c.encode("signature", forKey: .type)
+            try c.encode(signature, forKey: .signature)
         case .cancel:
             try c.encode("cancel", forKey: .type)
         }
@@ -359,5 +382,7 @@ struct RenameParam: Encodable { var id: String; var name: String }
 struct TreeParam: Encodable { var tree: [Node] }
 struct SavedCredentials: Codable { var username: String?; var password: String? }
 struct CredentialSave: Encodable { var scope: String; var username: String?; var password: String? }
+struct IdentityParam: Encodable { var identity: String }
+struct SignParam: Encodable { var identity: String; var data: String; var algorithm: String }
 struct SecretParam: Encodable { var scope: String; var field: String }
 struct SecretSave: Encodable { var scope: String; var field: String; var value: String }
