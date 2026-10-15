@@ -57,7 +57,7 @@ jobs:
           if (-not (Test-Path C:\gtk-build\gtk\x64\release\lib\pkgconfig\libadwaita-1.pc)) {
             pip install "gvsbuild==$env:GVSBUILD"
             New-Item -ItemType Directory -Force C:\gtk-build\src | Out-Null
-            Invoke-WebRequest https://www.x.org/releases/individual/lib/pixman-0.46.4.tar.gz -OutFile C:\gtk-build\src\pixman-0.46.4.tar.gz
+            Invoke-WebRequest https://deb.debian.org/debian/pool/main/p/pixman/pixman_0.46.4.orig.tar.gz -OutFile C:\gtk-build\src\pixman-0.46.4.tar.gz
             Invoke-WebRequest https://deb.debian.org/debian/pool/main/c/cairo/cairo_1.18.4.orig.tar.xz -OutFile C:\gtk-build\src\cairo-1.18.4.tar.xz
             for ($i = 1; $i -le 3; $i++) {
               gvsbuild build --vs-ver vs2026 gtk4 libadwaita librsvg adwaita-icon-theme
