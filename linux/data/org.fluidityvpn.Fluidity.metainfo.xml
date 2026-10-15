@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.fluidityvpn.Fluidity</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Fluidity</name>
+  <summary>Connect to OpenVPN servers</summary>
+  <description>
+    <p>Fluidity is a free and open source OpenVPN client. It manages connections, folders, saved passwords, scripts, proxies and traffic obfuscation from one window and the system tray.</p>
+  </description>
+  <launchable type="desktop-id">org.fluidityvpn.Fluidity.desktop</launchable>
+  <url type="homepage">https://github.com/fluidity-vpn/fluidity</url>
+  <url type="bugtracker">https://github.com/fluidity-vpn/fluidity/issues</url>
+  <developer id="org.fluidityvpn">
+    <name>The Fluidity Contributors</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-15"/>
+  </releases>
+</component>

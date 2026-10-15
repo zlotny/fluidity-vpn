@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Fluidity
+GenericName=VPN Client
+Comment=Connect to OpenVPN servers
+Exec=fluidity-gtk %F
+Icon=org.fluidityvpn.Fluidity
+Terminal=false
+Categories=Network;GTK;
+Keywords=VPN;OpenVPN;Network;Tunnel;
+MimeType=application/x-openvpn-profile;application/x-fluidity-connection;
+StartupNotify=true
+DBusActivatable=false

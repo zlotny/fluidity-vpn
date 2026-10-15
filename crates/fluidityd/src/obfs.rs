@@ -38,6 +38,7 @@ pub fn discover() -> Option<PathBuf> {
         PathBuf::from("/Library/Application Support/Fluidity").join(binary_name()),
         PathBuf::from("/usr/lib/fluidity").join(binary_name()),
         PathBuf::from("/usr/bin").join(binary_name()),
+        PathBuf::from("/usr/bin/obfs4proxy"),
     ]
     .into_iter()
     .find(|p| p.is_file() && crate::openvpn::trusted(p))

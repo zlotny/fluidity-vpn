@@ -20,3 +20,17 @@ jobs:
           FLUIDITY_MANAGED_PREFERENCES: /nonexistent
       - if: runner.os == 'macOS'
         run: cargo build --release -p fluidity-ffi && cd macos && swift build
+  linux-gtk:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libdbus-1-dev pkg-config
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt --check
+        working-directory: linux
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: linux
+      - run: cargo test
+        working-directory: linux

@@ -1,0 +1,16 @@
+[Unit]
+Description=Fluidity VPN service
+Documentation=https://github.com/fluidity-vpn/fluidity
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/fluidityd
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=fluidity
+StateDirectory=fluidity
+
+[Install]
+WantedBy=multi-user.target

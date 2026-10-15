@@ -135,7 +135,8 @@ Each phase ends with tests passing and a commit.
 ### Status
 
 - Phases 1 to 9 are done on macOS. FIDO2 is open.
-- Phases 10 and 11 are next. The daemon, CLI and Linux network backend build and pass e2e tests in Docker.
+- Phase 10 is done except Flatpak: GTK4 and libadwaita app with an SNI tray, systemd service, deb and rpm packages, a GUI e2e test in Docker. Keychain identities are macOS only.
+- Phase 11 is next.
 - Phase 12: the GitHub release updater and reproducible OpenVPN and lyrebird builds are done.
 
 ## 5. Third-party components (all FOSS)
