@@ -1,0 +1,5 @@
+module CFluidity [system] {
+    header "fluidity.h"
+    link "fluidity_ffi"
+    export *
+}

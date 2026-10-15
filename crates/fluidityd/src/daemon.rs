@@ -150,14 +150,12 @@ impl Daemon {
         let mut holds = self.time_machine_holds.lock().await;
         let before = *holds;
         *holds = if hold { before + 1 } else { before.saturating_sub(1) };
-        let change = match (before, *holds) {
-            (0, 1) => Some(false),
-            (1, 0) => Some(true),
-            _ => None,
+        let result = match (before, *holds) {
+            (0, 1) => self.backend.pause_time_machine(),
+            (1, 0) => self.backend.resume_time_machine(),
+            _ => Ok(()),
         };
-        if let Some(enabled) = change
-            && let Err(err) = self.backend.set_time_machine(enabled)
-        {
+        if let Err(err) = result {
             tracing::warn!("Time Machine: {err}");
         }
     }

@@ -57,6 +57,7 @@ fn save_model(store: &Store, id: Option<&str>, model: &EditorModel) -> Result<St
     }
     let (document, files) = model.to_bundle().map_err(|e| e.to_string())?;
     let mut bundle = Bundle { document, files };
+    embed_scripts(&mut bundle)?;
     if let Some(id) = id {
         let mut settings = Settings::from_document(&bundle.document);
         let clash = store
@@ -87,6 +88,30 @@ fn save_model(store: &Store, id: Option<&str>, model: &EditorModel) -> Result<St
     }
     let name = model.name.clone();
     store.add(bundle, &name).map(|c| c.id).map_err(|e| e.to_string())
+}
+
+fn embed_scripts(bundle: &mut Bundle) -> Result<(), String> {
+    for key in fluidity_config::SCRIPT_META_KEYS {
+        let Some(path) = bundle.document.meta(key).map(PathBuf::from) else {
+            continue;
+        };
+        if !path.is_absolute() {
+            continue;
+        }
+        let data = std::fs::read(&path).map_err(|e| format!("Cannot read {}: {e}", path.display()))?;
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| key.to_string());
+        let name = if bundle.files.get(&name).is_some_and(|d| *d != data) {
+            format!("{key}-{name}")
+        } else {
+            name
+        };
+        bundle.document.set_meta(key, &[&name]);
+        bundle.files.insert(name, data);
+    }
+    Ok(())
 }
 
 fn dispatch(method: &str, params: &Value) -> Result<Value, String> {
@@ -217,6 +242,26 @@ fn dispatch(method: &str, params: &Value) -> Result<Value, String> {
                     password: p.password,
                 },
             )?;
+            Ok(Value::Null)
+        }
+        "credentials.secret" => {
+            #[derive(Deserialize)]
+            struct P {
+                scope: String,
+                field: String,
+            }
+            let p: P = parse(params)?;
+            Ok(json!(CredentialStore::secret(&p.scope, &p.field)))
+        }
+        "credentials.save_secret" => {
+            #[derive(Deserialize)]
+            struct P {
+                scope: String,
+                field: String,
+                value: String,
+            }
+            let p: P = parse(params)?;
+            CredentialStore::save_secret(&p.scope, &p.field, &p.value)?;
             Ok(Value::Null)
         }
         "credentials.clear" => {

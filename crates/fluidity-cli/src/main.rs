@@ -191,7 +191,7 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
                 println!("No active connections");
             }
             for s in list {
-                let name = store.find(&s.id).map(|c| c.name).unwrap_or(s.id.clone());
+                let name = store.find(&s.id).map(|c| c.name).unwrap_or_else(|_| s.name.clone());
                 println!("{name}: {}", state_label(s.state));
                 if s.state == SessionState::Connected {
                     println!(

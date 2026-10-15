@@ -1,0 +1,4 @@
+#!/bin/sh
+resources="$2/Applications/Fluidity.app/Contents/Resources"
+[ -d "$resources" ] || resources=/Applications/Fluidity.app/Contents/Resources
+/bin/sh "$resources/install-helper.sh" "$resources"

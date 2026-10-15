@@ -18,3 +18,5 @@ jobs:
       - run: cargo test --workspace
         env:
           FLUIDITY_MANAGED_PREFERENCES: /nonexistent
+      - if: runner.os == 'macOS'
+        run: cargo build --release -p fluidity-ffi && cd macos && swift build

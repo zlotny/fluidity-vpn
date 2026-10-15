@@ -87,6 +87,10 @@ impl MacBackend {
         }
     }
 
+    fn time_machine_marker(&self) -> PathBuf {
+        self.state_dir.join("timemachine-paused")
+    }
+
     fn save_original(store: &SCDynamicStore, saved: &mut Saved, key: &str) {
         if saved.restore.iter().any(|(k, _)| k == key) {
             return;
@@ -264,6 +268,9 @@ impl Backend for MacBackend {
     }
 
     fn recover(&self) {
+        if let Err(err) = self.resume_time_machine() {
+            tracing::warn!("Time Machine: {err}");
+        }
         for path in state_files(&self.state_dir) {
             if let Ok(data) = fs::read(&path)
                 && let Ok(saved) = serde_json::from_slice::<Saved>(&data)
@@ -274,7 +281,26 @@ impl Backend for MacBackend {
         }
     }
 
-    fn set_time_machine(&self, enabled: bool) -> Result<(), String> {
-        run("/usr/bin/tmutil", &[if enabled { "enable" } else { "disable" }]).map(|_| ())
+    fn pause_time_machine(&self) -> Result<(), String> {
+        let auto = run(
+            "/usr/bin/defaults",
+            &["read", "/Library/Preferences/com.apple.TimeMachine", "AutoBackup"],
+        )
+        .unwrap_or_default();
+        if auto.trim() != "1" {
+            return Ok(());
+        }
+        run("/usr/bin/tmutil", &["disable"])?;
+        fs::create_dir_all(&self.state_dir).map_err(|e| e.to_string())?;
+        fs::write(self.time_machine_marker(), b"").map_err(|e| e.to_string())
+    }
+
+    fn resume_time_machine(&self) -> Result<(), String> {
+        let marker = self.time_machine_marker();
+        if !marker.exists() {
+            return Ok(());
+        }
+        run("/usr/bin/tmutil", &["enable"])?;
+        fs::remove_file(marker).map_err(|e| e.to_string())
     }
 }

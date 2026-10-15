@@ -7,7 +7,7 @@ Fluidity is a free and open source OpenVPN client for macOS, Windows, and Linux.
 **Connections and editor**
 - Connection list with folders. Folders share credentials and scripts.
 - Editor tabs: General, Authentication, Options, Networking, Transport (proxy, obfuscation), Advanced (scripts, raw OpenVPN commands).
-- Multiple remotes (`server:port:proto`), UDP/TCP, IPv4/IPv6/auto, tun/tap, DHCP for tap, OpenVPN compatibility mode (2.3, 2.4, 2.5, latest).
+- Multiple remotes (`server:port:proto`), UDP/TCP, IPv4/IPv6/auto, tun/tap, DHCP for tap, OpenVPN compatibility mode (2.3 to 2.6, latest).
 - Simultaneous connections. Import, export, duplicate.
 - Import: `.ovpn`, `.conf`, connection bundle folders, zip and tar.gz archives, Tunnelblick `.tblk`.
 
@@ -83,7 +83,7 @@ Fluidity is a free and open source OpenVPN client for macOS, Windows, and Linux.
                  +--------------------+--------------------------+
                                       | spawns, drops to _fluidity user
                                       v
-                          openvpn 2.6  +  lyrebird
+                          openvpn 2.7  +  lyrebird
 ```
 
 OpenVPN runs with `--management <socket> unix --management-hold --management-query-passwords --management-query-remote --management-query-proxy --auth-retry interact --script-security 1 --setenv IV_GUI_VER Fluidity_<version>`. It runs no scripts. The daemon applies DNS, proxies, and IPv6 blocking itself, using state and pushed options from the management interface.
@@ -136,7 +136,7 @@ Each phase ends with tests passing and a commit.
 
 | Component | License |
 |---|---|
-| OpenVPN 2.6 | GPL-2.0 |
+| OpenVPN 2.7 | GPL-2.0 |
 | lyrebird | BSD-3-Clause |
 | libfido2 | BSD-2-Clause |
 | Sparkle 2 / WinSparkle | MIT |

@@ -13,7 +13,10 @@ pub trait Backend: Send + Sync {
     fn apply(&self, id: &str, config: &NetConfig) -> Result<(), String>;
     fn revert(&self, id: &str);
     fn recover(&self);
-    fn set_time_machine(&self, _enabled: bool) -> Result<(), String> {
+    fn pause_time_machine(&self) -> Result<(), String> {
+        Ok(())
+    }
+    fn resume_time_machine(&self) -> Result<(), String> {
         Ok(())
     }
 }

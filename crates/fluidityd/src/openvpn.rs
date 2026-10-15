@@ -12,9 +12,6 @@ fn exe_dir() -> Option<PathBuf> {
 
 fn bundled_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
-    if let Some(dir) = std::env::var_os("FLUIDITY_OPENVPN_DIR") {
-        roots.push(PathBuf::from(dir));
-    }
     if let Some(exe) = exe_dir() {
         roots.push(exe.join("openvpn"));
         roots.push(exe.join("../Resources/openvpn"));
@@ -53,10 +50,31 @@ pub fn version_key(version: &str) -> Vec<u32> {
         .collect()
 }
 
+#[cfg(unix)]
+pub fn trusted(path: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    if unsafe { libc::geteuid() } != 0 {
+        return true;
+    }
+    let Ok(real) = path.canonicalize() else {
+        return false;
+    };
+    real.ancestors().all(|p| {
+        std::fs::metadata(p)
+            .map(|m| m.uid() == 0 && m.mode() & 0o022 == 0)
+            .unwrap_or(false)
+    })
+}
+
+#[cfg(not(unix))]
+pub fn trusted(_path: &Path) -> bool {
+    true
+}
+
 pub fn discover() -> Vec<Binary> {
     let mut found: Vec<Binary> = Vec::new();
-    let mut push = |path: PathBuf| {
-        if !path.is_file() || found.iter().any(|b| b.path == path) {
+    let mut add = |path: PathBuf, check: bool| {
+        if !path.is_file() || found.iter().any(|b| b.path == path) || (check && !trusted(&path)) {
             return;
         }
         if let Some(version) = probe_version(&path) {
@@ -64,8 +82,9 @@ pub fn discover() -> Vec<Binary> {
         }
     };
     if let Some(path) = std::env::var_os("FLUIDITY_OPENVPN") {
-        push(PathBuf::from(path));
+        add(PathBuf::from(path), false);
     }
+    let mut push = |path: PathBuf| add(path, true);
     for root in bundled_roots() {
         let Ok(entries) = std::fs::read_dir(&root) else {
             continue;

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="Fluidity Terminology" xmlns:xi="http://www.w3.org/2003/XInclude">
+  <xi:include href="file:///System/Library/ScriptingDefinitions/CocoaStandard.sdef" xpointer="xpointer(/dictionary/suite)"/>
+  <suite name="Fluidity Suite" code="Flui" description="Control Fluidity VPN connections.">
+    <class name="application" code="capp" description="The Fluidity application." inherits="application">
+      <cocoa class="NSApplication"/>
+      <element type="connection" access="r">
+        <cocoa key="scriptConnections"/>
+      </element>
+    </class>
+    <class name="connection" code="FCon" plural="connections" description="A VPN connection.">
+      <cocoa class="FluidityScriptConnection"/>
+      <property name="id" code="ID  " type="text" access="r" description="The unique identifier of the connection.">
+        <cocoa key="uniqueID"/>
+      </property>
+      <property name="name" code="pnam" type="text" access="r" description="The name of the connection."/>
+      <property name="state" code="FSta" type="text" access="r" description="Connected, Connecting, Authenticating, Reconnecting, Disconnecting, Disconnected or Error."/>
+      <property name="ipv4 address" code="FIp4" type="text" access="r" description="The IPv4 address of the tunnel.">
+        <cocoa key="ipv4Address"/>
+      </property>
+      <property name="ipv6 address" code="FIp6" type="text" access="r" description="The IPv6 address of the tunnel.">
+        <cocoa key="ipv6Address"/>
+      </property>
+      <property name="server address" code="FSrv" type="text" access="r" description="The address of the VPN server.">
+        <cocoa key="serverAddress"/>
+      </property>
+      <property name="bytes in" code="FBIn" type="real" access="r" description="Bytes received.">
+        <cocoa key="bytesIn"/>
+      </property>
+      <property name="bytes out" code="FBOu" type="real" access="r" description="Bytes sent.">
+        <cocoa key="bytesOut"/>
+      </property>
+    </class>
+    <command name="connect" code="FluiConn" description="Connect a connection, given by name or reference.">
+      <cocoa class="FluidityConnectCommand"/>
+      <direct-parameter description="The connection or its name.">
+        <type type="text"/>
+        <type type="connection"/>
+      </direct-parameter>
+    </command>
+    <command name="disconnect" code="FluiDisc" description="Disconnect a connection, given by name or reference.">
+      <cocoa class="FluidityDisconnectCommand"/>
+      <direct-parameter description="The connection or its name.">
+        <type type="text"/>
+        <type type="connection"/>
+      </direct-parameter>
+    </command>
+    <command name="connectall" code="FluiCAll" description="Connect all connections.">
+      <cocoa class="FluidityConnectAllCommand"/>
+    </command>
+    <command name="disconnectall" code="FluiDAll" description="Disconnect all connections.">
+      <cocoa class="FluidityDisconnectAllCommand"/>
+    </command>
+  </suite>
+</dictionary>
