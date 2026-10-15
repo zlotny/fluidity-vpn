@@ -75,6 +75,8 @@ Open Fluidity, then import a connection file from your VPN provider: click **+**
 
 ### Command line
 
+On macOS, click **Install Command-Line Tool…** in Preferences > Advanced first.
+
 ```sh
 fluidity import client.ovpn
 fluidity connect "My VPN"

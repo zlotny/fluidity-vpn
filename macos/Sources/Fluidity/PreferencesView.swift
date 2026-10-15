@@ -425,9 +425,9 @@ struct ConnectionSummary: View {
                 HStack {
                     Button("Edit…") { WindowManager.shared.showEditor(id: connection.id) }
                     Button("Details…") { WindowManager.shared.showDetails(connection.id) }
-                    Button("Forget Password") {
-                        try? Core.run("credentials.clear", ScopeParam(scope: connection.credentialScope))
-                    }
+                }
+                Button("Forget Password") {
+                    try? Core.run("credentials.clear", ScopeParam(scope: connection.credentialScope))
                 }
             }
         }
