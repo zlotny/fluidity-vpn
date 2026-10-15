@@ -107,7 +107,8 @@ mod tests {
 
     #[test]
     fn finds_files_outside_bundle() {
-        let doc = Document::parse("ca ca.crt\ncert /etc/master.passwd\nkey ../k.pem\n<tls-crypt>\nX\n</tls-crypt>\n").unwrap();
+        let doc = Document::parse("ca ca.crt\ncert /etc/master.passwd\nkey ../k.pem\n<tls-crypt>\nX\n</tls-crypt>\n")
+            .unwrap();
         assert_eq!(foreign_files(&doc, &["ca.crt"]), ["/etc/master.passwd", "../k.pem"]);
     }
 
