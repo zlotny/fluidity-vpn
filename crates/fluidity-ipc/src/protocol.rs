@@ -62,6 +62,12 @@ pub enum Request {
         #[serde(default)]
         id: Option<String>,
     },
+    Usage {
+        id: String,
+    },
+    ClearUsage {
+        id: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -194,6 +200,13 @@ pub struct SystemSettings {
     pub allow_unsafe_commands: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UsageSample {
+    pub hour: u64,
+    pub bytes_in: u64,
+    pub bytes_out: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LogEntry {
     pub time: u64,
@@ -220,6 +233,7 @@ pub enum Payload {
     Settings(SystemSettings),
     Versions(Vec<String>),
     Blocked(Vec<String>),
+    Usage(Vec<UsageSample>),
     Hello { version: u32, daemon: String },
     Empty {},
 }

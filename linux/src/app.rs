@@ -22,6 +22,8 @@ pub struct App {
     pub sessions: RefCell<HashMap<String, SessionInfo>>,
     pub logs: RefCell<HashMap<String, Vec<LogEntry>>>,
     pub traffic: RefCell<HashMap<String, Vec<TrafficSample>>>,
+    pub usage: RefCell<HashMap<String, Vec<fluidity_ipc::UsageSample>>>,
+    pending_urls: RefCell<Vec<String>>,
     pub daemon: Cell<bool>,
     pub blocked: RefCell<Vec<String>>,
     pub ssid: RefCell<Option<String>>,
@@ -54,6 +56,8 @@ impl App {
             connections: RefCell::default(),
             sessions: RefCell::default(),
             logs: RefCell::default(),
+            usage: RefCell::default(),
+            pending_urls: RefCell::default(),
             traffic: RefCell::default(),
             daemon: Cell::new(false),
             blocked: RefCell::default(),
@@ -282,6 +286,12 @@ impl App {
             }
             Message::Versions(list) => *self.versions.borrow_mut() = list,
             Message::Blocked(ids) => self.set_blocked(ids),
+            Message::Usage(id, samples) => {
+                self.usage.borrow_mut().insert(id.clone(), samples);
+                if let Some(w) = self.existing_window() {
+                    w.usage_changed(&id);
+                }
+            }
             Message::Error(e) => self.error(&e),
             Message::Tray(action) => self.tray_action(action),
         }

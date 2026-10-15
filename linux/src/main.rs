@@ -117,6 +117,9 @@ fn install_actions(app: &Rc<App>) {
     gtk_app.set_accels_for_action("window.close", &["<Control>w"]);
     gtk_app.set_accels_for_action("win.toggle", &["<Control>Return"]);
     gtk_app.set_accels_for_action("win.edit", &["<Control>e"]);
+    for (k, page) in ["status", "traffic", "usage", "log"].iter().enumerate() {
+        gtk_app.set_accels_for_action(&format!("win.page::{page}"), &[&format!("<Alt>{}", k + 1)]);
+    }
 }
 
 fn about(app: &Rc<App>) {

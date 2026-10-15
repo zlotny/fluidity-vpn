@@ -66,6 +66,10 @@ key Return
 check "connects from the GUI" "wait_for 'fluidity status | grep -q Connected'"
 ping -c 3 -i 0.3 10.99.0.1 >/dev/null 2>&1 || true
 shot connected 3
+key alt+3
+check "usage page counts traffic" "wait_for 'fluidity usage Office | grep -qv \"0 B down\"'"
+shot usage 2
+key alt+1
 
 key ctrl+e
 shot editor 2

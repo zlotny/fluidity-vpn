@@ -34,6 +34,8 @@ private struct VersionsPayload: Decodable { let versions: [String] }
 private struct SettingsPayload: Decodable { let settings: SystemSettings }
 private struct BlockedPayload: Decodable { let blocked: [String] }
 private struct UnblockParams: Encodable { let id: String? }
+private struct IdParams: Encodable { let id: String }
+private struct UsagePayload: Decodable { let usage: [UsageSample] }
 
 private struct Request<P: Encodable>: Encodable {
     let seq: UInt64
@@ -241,6 +243,15 @@ final class DaemonClient: @unchecked Sendable {
 
     func unblock(id: String?) async throws {
         _ = try await request("unblock", UnblockParams(id: id))
+    }
+
+    func usage(id: String) async throws -> [UsageSample] {
+        let data = try await request("usage", IdParams(id: id))
+        return try Core.decoder.decode(OkEnvelope<UsagePayload>.self, from: data).ok.usage
+    }
+
+    func clearUsage(id: String) async throws {
+        _ = try await request("clear_usage", IdParams(id: id))
     }
 
     func reply(id: String, reply: Reply) async throws {

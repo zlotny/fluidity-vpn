@@ -347,6 +347,9 @@ impl Session {
         if let Some(transport) = self.obfs.take() {
             transport.stop().await;
         }
+        if let Ok(mut usage) = self.daemon.usage.lock() {
+            usage.save(now());
+        }
         self.info.connected_since = None;
         self.info.bytes_in = 0;
         self.info.bytes_out = 0;
@@ -652,6 +655,16 @@ impl Session {
                 }
             }
             MgmtEvent::ByteCount { bytes_in, bytes_out } => {
+                let delta = |new: u64, old: u64| if new >= old { new - old } else { new };
+                if let Ok(mut usage) = self.daemon.usage.lock() {
+                    usage.add(
+                        self.info.owner_uid,
+                        &self.spec.id,
+                        now(),
+                        delta(bytes_in, self.info.bytes_in),
+                        delta(bytes_out, self.info.bytes_out),
+                    );
+                }
                 self.info.bytes_in = bytes_in;
                 self.info.bytes_out = bytes_out;
                 self.publish().await;

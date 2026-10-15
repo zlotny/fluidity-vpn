@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use fluidity_ipc::{Client, ConnectOptions, Event, LogEntry, Payload, Reply, Request, SessionInfo, WireBundle};
+use fluidity_ipc::{
+    Client, ConnectOptions, Event, LogEntry, Payload, Reply, Request, SessionInfo, UsageSample, WireBundle,
+};
 
 use crate::tray::{self, TrayAction, TraySnapshot};
 
@@ -19,6 +21,8 @@ pub enum Command {
     Log(String),
     Versions,
     Unblock(Option<String>),
+    Usage(String),
+    ClearUsage(String),
     Tray(TraySnapshot),
 }
 
@@ -29,6 +33,7 @@ pub enum Message {
     Log(String, Vec<LogEntry>),
     Versions(Vec<String>),
     Blocked(Vec<String>),
+    Usage(String, Vec<UsageSample>),
     Error(String),
     Tray(TrayAction),
 }
@@ -132,7 +137,26 @@ async fn execute(client: &Client, ui: &async_channel::Sender<Message>, command: 
             }
             return Ok(());
         }
+        Command::Usage(id) => return usage(client, ui, id).await,
+        Command::ClearUsage(id) => {
+            client
+                .request(Request::ClearUsage { id: id.clone() })
+                .await
+                .map_err(|e| e.to_string())?;
+            return usage(client, ui, id).await;
+        }
         Command::Tray(_) => return Ok(()),
     };
     client.request(request).await.map(|_| ()).map_err(|e| e.to_string())
+}
+
+async fn usage(client: &Client, ui: &async_channel::Sender<Message>, id: String) -> Result<(), String> {
+    if let Payload::Usage(samples) = client
+        .request(Request::Usage { id: id.clone() })
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        let _ = ui.send(Message::Usage(id, samples)).await;
+    }
+    Ok(())
 }

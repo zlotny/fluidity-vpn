@@ -81,6 +81,44 @@ pub fn bytes(value: f64) -> String {
     }
 }
 
+pub fn usage_days(
+    samples: &[fluidity_ipc::UsageSample],
+    count: usize,
+    today: i64,
+    day_of: impl Fn(u64) -> i64,
+) -> Vec<(u64, u64)> {
+    let mut days = vec![(0, 0); count];
+    for s in samples {
+        let back = today - day_of(s.hour);
+        if (0..count as i64).contains(&back) {
+            let day = &mut days[count - 1 - back as usize];
+            day.0 += s.bytes_in;
+            day.1 += s.bytes_out;
+        }
+    }
+    days
+}
+
+pub fn usage_total(days: &[(u64, u64)]) -> (u64, u64) {
+    days.iter().fold((0, 0), |(a, b), (i, o)| (a + i, b + o))
+}
+
+pub fn ticks(peak: f64) -> Vec<f64> {
+    if peak <= 0.0 {
+        return vec![0.0];
+    }
+    let mut unit = 1.0;
+    while peak / unit >= 1024.0 {
+        unit *= 1024.0;
+    }
+    let step = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0]
+        .iter()
+        .map(|m| m * unit)
+        .find(|step| peak / step <= 4.0)
+        .unwrap_or(1024.0 * unit);
+    (0..).map(|k| k as f64 * step).take_while(|v| *v <= peak).collect()
+}
+
 pub fn duration(seconds: u64) -> String {
     let (h, m, s) = (seconds / 3600, (seconds % 3600) / 60, seconds % 60);
     if h > 0 {
@@ -190,6 +228,28 @@ pub fn folder_mut<'a>(nodes: &'a mut [Node], id: &str) -> Option<&'a mut fluidit
 mod tests {
     use super::*;
     use fluidity_core::Folder;
+    use fluidity_ipc::UsageSample;
+
+    #[test]
+    fn groups_usage_by_day() {
+        let sample = |hour, bytes_in| UsageSample {
+            hour,
+            bytes_in,
+            bytes_out: 1,
+        };
+        let samples = [
+            sample(10 * 86400, 5),
+            sample(10 * 86400 + 3600, 7),
+            sample(8 * 86400, 2),
+            sample(1, 9),
+        ];
+        let days = usage_days(&samples, 3, 10, |t| (t / 86400) as i64);
+        assert_eq!(days, vec![(2, 1), (0, 0), (12, 2)]);
+        assert_eq!(usage_total(&days), (14, 3));
+        assert_eq!(ticks(3.4 * 1024.0 * 1024.0 * 1024.0).len(), 4);
+        assert_eq!(ticks(900.0), vec![0.0, 500.0]);
+        assert_eq!(ticks(0.0), vec![0.0]);
+    }
 
     fn folder(id: &str, children: Vec<Node>) -> Node {
         Node::Folder(Folder {

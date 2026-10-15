@@ -37,6 +37,12 @@ enum Commands {
     },
     #[command(about = "Allow internet traffic that the kill switch blocks")]
     Unblock { name: Option<String> },
+    #[command(about = "Show data usage of a connection")]
+    Usage {
+        name: String,
+        #[arg(long, help = "Delete the usage history")]
+        reset: bool,
+    },
     #[command(about = "Connect every connection")]
     ConnectAll,
     #[command(about = "Disconnect every connection")]
@@ -377,6 +383,33 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
                 .request(Request::Unblock { id })
                 .await
                 .map_err(|e| e.to_string())?;
+        }
+        Commands::Usage { name, reset } => {
+            let id = store.find(&name).map_err(|e| e.to_string())?.id;
+            let (client, _) = daemon().await?;
+            if reset {
+                client
+                    .request(Request::ClearUsage { id })
+                    .await
+                    .map_err(|e| e.to_string())?;
+                return Ok(ExitCode::SUCCESS);
+            }
+            let samples = match client.request(Request::Usage { id }).await.map_err(|e| e.to_string())? {
+                fluidity_ipc::Payload::Usage(samples) => samples,
+                _ => Vec::new(),
+            };
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or_default();
+            for (label, days) in [("Last 24 hours", 1), ("Last 7 days", 7), ("Last 30 days", 30)] {
+                let since = now.saturating_sub(days * 86400);
+                let (down, up) = samples
+                    .iter()
+                    .filter(|s| s.hour + 3600 > since)
+                    .fold((0, 0), |(d, u), s| (d + s.bytes_in, u + s.bytes_out));
+                println!("{label:<14} {:>10} down  {:>10} up", human_bytes(down), human_bytes(up));
+            }
         }
         Commands::Versions => {
             let (client, _) = daemon().await?;

@@ -7,6 +7,7 @@ use tokio::sync::{Mutex, RwLock, broadcast, mpsc};
 
 use crate::killswitch::{Lock, Rules};
 use crate::net::Backend;
+use crate::usage::Usage;
 
 pub const LOG_LIMIT: usize = 5000;
 
@@ -36,6 +37,10 @@ impl Paths {
         self.data_dir.join("system.json")
     }
 
+    pub fn usage_file(&self) -> PathBuf {
+        self.data_dir.join("usage.json")
+    }
+
     pub fn net_state_dir(&self) -> PathBuf {
         self.data_dir.join("state")
     }
@@ -63,6 +68,7 @@ pub struct Daemon {
     pub settings: RwLock<SystemSettings>,
     pub time_machine_holds: Mutex<usize>,
     pub kill_switch: Mutex<BTreeMap<String, Lock>>,
+    pub usage: std::sync::Mutex<Usage>,
     pub gui_version: String,
     pub generation: std::sync::atomic::AtomicU64,
 }
@@ -73,7 +79,9 @@ impl Daemon {
             .ok()
             .and_then(|d| serde_json::from_slice(&d).ok())
             .unwrap_or_default();
+        let usage = std::sync::Mutex::new(Usage::load(paths.usage_file()));
         Arc::new(Self {
+            usage,
             paths,
             backend,
             sessions: Mutex::default(),

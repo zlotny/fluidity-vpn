@@ -73,6 +73,12 @@ enum SessionState: String, Codable {
     }
 }
 
+struct UsageSample: Codable, Equatable {
+    var hour: UInt64
+    var bytesIn: UInt64
+    var bytesOut: UInt64
+}
+
 struct SessionInfo: Codable, Equatable {
     var id: String
     var name: String

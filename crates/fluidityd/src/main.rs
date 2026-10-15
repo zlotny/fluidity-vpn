@@ -7,6 +7,7 @@ mod openvpn;
 mod proxy;
 mod server;
 mod session;
+mod usage;
 #[cfg(windows)]
 mod windows;
 

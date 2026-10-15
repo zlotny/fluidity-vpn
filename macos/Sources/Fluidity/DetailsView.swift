@@ -55,7 +55,7 @@ struct DetailsView: View {
 struct ConnectionDetail: View {
     @EnvironmentObject var manager: ConnectionManager
     let connection: ConnectionInfo
-    @State private var tab = 0
+    @State private var tab = Snapshots.detailsTab
     @State private var now = Date()
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -78,6 +78,7 @@ struct ConnectionDetail: View {
             Picker("", selection: $tab) {
                 Text("Status").tag(0)
                 Text("Traffic").tag(1)
+                Text("Usage").tag(3)
                 Text("Log").tag(2)
             }
             .pickerStyle(.segmented)
@@ -85,6 +86,7 @@ struct ConnectionDetail: View {
             switch tab {
             case 0: StatusGrid(session: session, now: now)
             case 1: TrafficPane(id: connection.id, session: session)
+            case 3: UsagePane(id: connection.id)
             default: LogPane(id: connection.id)
             }
         }

@@ -269,6 +269,16 @@ async fn handle(daemon: &Arc<Daemon>, uid: u32, request: Request) -> Result<Payl
             daemon.release_kill_switch(uid, id.as_deref()).await;
             Ok(Payload::Empty {})
         }
+        Request::Usage { id } => {
+            let usage = daemon.usage.lock().map(|u| u.history(uid, &id, crate::session::now()));
+            Ok(Payload::Usage(usage.unwrap_or_default()))
+        }
+        Request::ClearUsage { id } => {
+            if let Ok(mut usage) = daemon.usage.lock() {
+                usage.clear(uid, &id, crate::session::now());
+            }
+            Ok(Payload::Empty {})
+        }
         Request::Versions => {
             let binaries = tokio::task::spawn_blocking(openvpn::discover).await.unwrap_or_default();
             Ok(Payload::Versions(binaries.into_iter().map(|b| b.version).collect()))

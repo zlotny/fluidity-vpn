@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 enum Snapshots {
     private static var timer: Timer?
+    static var detailsTab = 0
 
     static func start() {
         guard let path = ProcessInfo.processInfo.environment["FLUIDITY_SNAPSHOT_DIR"] else { return }
@@ -12,7 +13,9 @@ enum Snapshots {
         for name in (env["FLUIDITY_SNAPSHOT_SHOW"] ?? "").split(separator: ",") {
             switch name {
             case "welcome": WindowManager.shared.showWelcome()
-            case "details": WindowManager.shared.showDetails(nil)
+            case let tab where tab.hasPrefix("details"):
+                detailsTab = ["status", "traffic", "log", "usage"].firstIndex(of: tab.split(separator: ":").dropFirst().first.map(String.init) ?? "") ?? 0
+                WindowManager.shared.showDetails(nil)
             case "editor": WindowManager.shared.showEditor(id: nil)
             case let tab where tab.hasPrefix("preferences"):
                 let raw = tab.split(separator: ":").dropFirst().first.map(String.init) ?? "connections"

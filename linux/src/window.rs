@@ -31,6 +31,10 @@ struct Detail {
     rates: gtk::Label,
     log: gtk::TextView,
     menu: gtk::MenuButton,
+    stack: adw::ViewStack,
+    usage_rows: Vec<adw::ActionRow>,
+    usage_graph: gtk::DrawingArea,
+    usage_reset: gtk::Button,
 }
 
 pub struct Window {
@@ -343,6 +347,45 @@ impl Window {
             "power-profile-performance-symbolic",
         );
 
+        let usage_group = adw::PreferencesGroup::new();
+        let usage_rows: Vec<adw::ActionRow> = ["Today", "Last 7 days", "Last 30 days"]
+            .into_iter()
+            .map(|title| {
+                let row = adw::ActionRow::builder().title(title).css_classes(["property"]).build();
+                usage_group.add(&row);
+                row
+            })
+            .collect();
+        let usage_graph = gtk::DrawingArea::builder().hexpand(true).content_height(180).build();
+        let usage_frame = gtk::Frame::builder().child(&usage_graph).build();
+        let usage_note = gtk::Label::builder()
+            .label("Usage is kept on this computer for 30 days.")
+            .css_classes(["dim-label"])
+            .xalign(0.0)
+            .hexpand(true)
+            .wrap(true)
+            .build();
+        let usage_reset = gtk::Button::builder()
+            .label("Reset…")
+            .action_name("win.reset-usage")
+            .build();
+        let usage_actions = gtk::Box::builder().spacing(8).build();
+        usage_actions.append(&usage_note);
+        usage_actions.append(&usage_reset);
+        let usage_box = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(12)
+            .build();
+        usage_box.append(&usage_group);
+        usage_box.append(&usage_frame);
+        usage_box.append(&usage_actions);
+        let usage_page = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .vexpand(true)
+            .child(&usage_box)
+            .build();
+        stack.add_titled_with_icon(&usage_page, Some("usage"), "Usage", "x-office-spreadsheet-symbolic");
+
         let log = gtk::TextView::builder()
             .editable(false)
             .monospace(true)
@@ -398,6 +441,10 @@ impl Window {
                 rates,
                 log,
                 menu,
+                stack,
+                usage_rows,
+                usage_graph,
+                usage_reset,
             },
             view.upcast(),
         )
@@ -487,6 +534,48 @@ impl Window {
             }),
         );
 
+        let page = gio::SimpleAction::new("page", Some(glib::VariantTy::STRING));
+        let weak = Rc::downgrade(self);
+        page.connect_activate(move |_, value| {
+            let (Some(w), Some(name)) = (weak.upgrade(), value.and_then(|v| v.str())) else {
+                return;
+            };
+            w.detail.stack.set_visible_child_name(name);
+        });
+        self.win.add_action(&page);
+        action(
+            "reset-usage",
+            Box::new(|app, w, id| {
+                let name = app.connection(&id).map(|c| c.name).unwrap_or_default();
+                let dialog = adw::AlertDialog::new(
+                    Some(&format!("Reset usage of “{name}”?")),
+                    Some("The data usage history of this connection is deleted."),
+                );
+                dialog.add_response("cancel", "Cancel");
+                dialog.add_response("reset", "Reset");
+                dialog.set_response_appearance("reset", adw::ResponseAppearance::Destructive);
+                dialog.set_close_response("cancel");
+                let app = app.clone();
+                dialog.connect_response(Some("reset"), move |_, _| {
+                    app.send(crate::backend::Command::ClearUsage(id.clone()))
+                });
+                dialog.present(Some(&w.win));
+            }),
+        );
+
+        let weak = Rc::downgrade(self);
+        self.detail.usage_graph.set_draw_func(move |_, cr, width, height| {
+            if let Some(w) = weak.upgrade() {
+                w.draw_usage(cr, width as f64, height as f64);
+            }
+        });
+        let weak = Rc::downgrade(self);
+        self.detail.stack.connect_visible_child_name_notify(move |_| {
+            if let Some(w) = weak.upgrade() {
+                w.request_usage();
+            }
+        });
+
         let weak = Rc::downgrade(self);
         self.detail.graph.set_draw_func(move |_, cr, width, height| {
             if let Some(w) = weak.upgrade() {
@@ -501,6 +590,9 @@ impl Window {
             };
             if w.win.is_visible() {
                 w.refresh_detail();
+                if (state::now() as u64).is_multiple_of(30) {
+                    w.request_usage();
+                }
             }
             glib::ControlFlow::Continue
         });
@@ -664,7 +756,113 @@ impl Window {
             app.send(crate::backend::Command::Log(id.clone()));
         }
         self.log_changed(&id);
+        self.usage_changed(&id);
+        self.request_usage();
         self.refresh_detail();
+    }
+
+    fn request_usage(&self) {
+        let app = self.app();
+        if self.detail.stack.visible_child_name().as_deref() != Some("usage") || !app.daemon.get() {
+            return;
+        }
+        if let Some(id) = self.selected.borrow().clone() {
+            app.send(crate::backend::Command::Usage(id));
+        }
+    }
+
+    fn usage_days(&self, id: &str) -> Vec<(u64, u64)> {
+        let app = self.app();
+        let usage = app.usage.borrow();
+        let samples = usage.get(id).map(Vec::as_slice).unwrap_or_default();
+        let day_of = |t: u64| {
+            let offset = glib::DateTime::from_unix_local(t as i64)
+                .map(|d| d.utc_offset().as_seconds())
+                .unwrap_or_default();
+            (t as i64 + offset).div_euclid(86400)
+        };
+        state::usage_days(samples, 30, day_of(state::now() as u64), day_of)
+    }
+
+    pub fn usage_changed(&self, id: &str) {
+        if self.selected.borrow().as_deref() != Some(id) {
+            return;
+        }
+        let days = self.usage_days(id);
+        for (row, count) in self.detail.usage_rows.iter().zip([1, 7, 30]) {
+            let (i, o) = state::usage_total(&days[days.len() - count..]);
+            row.set_subtitle(&format!("↓ {}   ↑ {}", state::bytes(i as f64), state::bytes(o as f64)));
+        }
+        self.detail
+            .usage_reset
+            .set_sensitive(days.iter().any(|(i, o)| i + o > 0));
+        self.detail.usage_graph.queue_draw();
+    }
+
+    fn draw_usage(&self, cr: &gtk::cairo::Context, width: f64, height: f64) {
+        let Some(id) = self.selected.borrow().clone() else {
+            return;
+        };
+        let days = self.usage_days(&id);
+        let fg = self.win.color();
+        let ink = |a: f64| cr.set_source_rgba(fg.red() as f64, fg.green() as f64, fg.blue() as f64, a);
+        let peak = days.iter().map(|(i, o)| (i + o) as f64).fold(0.0, f64::max);
+        if peak <= 0.0 {
+            ink(0.5);
+            let layout = self.win.create_pango_layout(Some("No data usage yet"));
+            let (tw, th) = layout.pixel_size();
+            cr.move_to((width - tw as f64) / 2.0, (height - th as f64) / 2.0);
+            pangocairo::functions::show_layout(cr, &layout);
+            return;
+        }
+        let ticks = state::ticks(peak);
+        let label_width = ticks
+            .iter()
+            .map(|t| self.win.create_pango_layout(Some(&state::bytes(*t))).pixel_size().0)
+            .max()
+            .unwrap_or_default() as f64;
+        let (left, top, bottom, right) = (10.0, 12.0, 24.0, label_width + 16.0);
+        let plot_w = width - left - right;
+        let plot_h = height - top - bottom;
+        let scale = peak.max(*ticks.last().unwrap_or(&peak));
+        let y = |v: f64| top + plot_h - v / scale * plot_h;
+        cr.set_line_width(1.0);
+        for t in &ticks {
+            ink(0.12);
+            let ty = y(*t).round() + 0.5;
+            cr.move_to(left, ty);
+            cr.line_to(left + plot_w, ty);
+            let _ = cr.stroke();
+            ink(0.6);
+            let layout = self.win.create_pango_layout(Some(&state::bytes(*t)));
+            let th = layout.pixel_size().1 as f64;
+            cr.move_to(left + plot_w + 8.0, ty - th / 2.0);
+            pangocairo::functions::show_layout(cr, &layout);
+        }
+        let slot = plot_w / days.len() as f64;
+        let bar = (slot * 0.7).max(1.0);
+        for (k, (i, o)) in days.iter().enumerate() {
+            let x = left + k as f64 * slot + (slot - bar) / 2.0;
+            cr.set_source_rgba(0.21, 0.52, 0.89, 0.9);
+            cr.rectangle(x, y(*i as f64), bar, y(0.0) - y(*i as f64));
+            let _ = cr.fill();
+            cr.set_source_rgba(0.18, 0.76, 0.49, 0.9);
+            cr.rectangle(x, y((i + o) as f64), bar, y(*i as f64) - y((i + o) as f64));
+            let _ = cr.fill();
+        }
+        ink(0.6);
+        let now = glib::DateTime::now_local().ok();
+        for back in (6..days.len()).step_by(7) {
+            let Some(date) = now.as_ref().and_then(|d| d.add_days(-(back as i32)).ok()) else {
+                continue;
+            };
+            let text = date.format("%b %-d").map(|s| s.to_string()).unwrap_or_default();
+            let layout = self.win.create_pango_layout(Some(text.trim()));
+            let (tw, _) = layout.pixel_size();
+            let center = left + (days.len() - 1 - back) as f64 * slot + slot / 2.0;
+            cr.move_to(center - tw as f64 / 2.0, top + plot_h + 6.0);
+            pangocairo::functions::show_layout(cr, &layout);
+        }
     }
 
     fn refresh_detail(&self) {
