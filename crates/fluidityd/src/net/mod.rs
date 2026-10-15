@@ -6,8 +6,11 @@ use crate::netconfig::NetConfig;
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
-#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
 mod unsupported;
+#[cfg(any(windows, test))]
+#[cfg_attr(not(windows), allow(dead_code))]
+mod windows;
 
 pub trait Backend: Send + Sync {
     fn apply(&self, id: &str, config: &NetConfig) -> Result<(), String>;
@@ -26,7 +29,9 @@ pub fn backend(state_dir: &Path) -> Box<dyn Backend> {
     return Box::new(macos::MacBackend::new(state_dir));
     #[cfg(target_os = "linux")]
     return Box::new(linux::LinuxBackend::new(state_dir));
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    #[cfg(windows)]
+    return Box::new(windows::WindowsBackend::new(state_dir));
+    #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
     return Box::new(unsupported::Unsupported::new(state_dir));
 }
 
@@ -75,6 +80,7 @@ pub(crate) fn run(program: &str, args: &[&str]) -> Result<String, String> {
     }
 }
 
+#[cfg(unix)]
 pub(crate) fn run_with_input(program: &str, args: &[&str], input: &str) -> Result<String, String> {
     use std::io::Write;
     let mut child = std::process::Command::new(program)
