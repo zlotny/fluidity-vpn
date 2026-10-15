@@ -1,0 +1,5 @@
+mod client;
+mod event;
+
+pub use client::{Client, Error, ProxyAction, RemoteAction, Response, Signal, quote, static_challenge_password};
+pub use event::{DynamicChallenge, Event, LogLine, Need, PasswordRequest, State, StateChange, StaticChallenge};
