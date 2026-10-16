@@ -1,6 +1,6 @@
 param(
     [string]$Gtk = "C:\gtk-build\gtk\x64\release",
-    [string]$Version = "0.1.0"
+    [string]$Version = "1.0.0"
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent

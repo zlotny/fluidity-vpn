@@ -546,7 +546,7 @@ dependencies = [
 
 [[package]]
 name = "fluidity-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "clap",
  "fluidity-config",
@@ -560,7 +560,7 @@ dependencies = [
 
 [[package]]
 name = "fluidity-config"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64",
  "flate2",
@@ -573,7 +573,7 @@ dependencies = [
 
 [[package]]
 name = "fluidity-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64",
  "fluidity-config",
@@ -589,7 +589,7 @@ dependencies = [
 
 [[package]]
 name = "fluidity-ffi"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "fluidity-config",
  "fluidity-core",
@@ -600,7 +600,7 @@ dependencies = [
 
 [[package]]
 name = "fluidity-ipc"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64",
  "serde",
@@ -611,7 +611,7 @@ dependencies = [
 
 [[package]]
 name = "fluidity-mgmt"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64",
  "thiserror",
@@ -620,7 +620,7 @@ dependencies = [
 
 [[package]]
 name = "fluidityd"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64",
  "clap",
