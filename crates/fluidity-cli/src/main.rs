@@ -192,7 +192,8 @@ async fn run(cli: Cli) -> Result<ExitCode, String> {
                                 .find(|s| &s.id == id)
                                 .map(|s| state_label(s.state))
                                 .unwrap_or("Disconnected");
-                            println!("{:indent$}{:<32} {state}", "", c.name);
+                            let width = 32usize.saturating_sub(indent);
+                            println!("{:indent$}{:<width$} {state}", "", c.name);
                         }
                     }
                 }
