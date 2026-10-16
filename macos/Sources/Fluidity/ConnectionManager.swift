@@ -55,12 +55,16 @@ final class ConnectionManager: ObservableObject {
         return result
     }
 
+    private var knownSessions: [SessionInfo] {
+        sessions.values.filter { connections[$0.id] != nil }
+    }
+
     var activeSessions: [SessionInfo] {
-        sessions.values.filter { $0.state.isActive }.sorted { $0.name < $1.name }
+        knownSessions.filter { $0.state.isActive }.sorted { $0.name < $1.name }
     }
 
     var overallState: SessionState {
-        let states = sessions.values.map(\.state)
+        let states = knownSessions.map(\.state)
         if states.contains(.connected) { return .connected }
         if states.contains(where: { $0.isActive }) { return .connecting }
         return .disconnected
