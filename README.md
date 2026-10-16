@@ -6,7 +6,7 @@
 
 <p align="center">
   A free and open source OpenVPN client for macOS, Windows and Linux.<br>
-  <sub>A reimplementation of Viscosity.</sub>
+  <sub>A free and open source alternative to VPN clients like Viscosity.</sub>
 </p>
 
 <p align="center">
