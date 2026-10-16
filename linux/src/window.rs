@@ -693,6 +693,11 @@ impl Window {
         self.toasts.add_toast(toast);
     }
 
+    pub fn show_log(&self, id: &str) {
+        self.select(id);
+        self.detail.stack.set_visible_child_name("log");
+    }
+
     pub fn select(&self, id: &str) {
         *self.selected.borrow_mut() = Some(id.to_string());
         if let Some(row) = self.rows.borrow().get(id) {

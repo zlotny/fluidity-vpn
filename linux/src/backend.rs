@@ -35,6 +35,7 @@ pub enum Message {
     Blocked(Vec<String>),
     Usage(String, Vec<UsageSample>),
     Error(String),
+    ConnectFailed(String, String),
     Tray(TrayAction),
 }
 
@@ -121,7 +122,17 @@ async fn update_tray(tray: &Option<tray::Handle>, snapshot: TraySnapshot) {
 
 async fn execute(client: &Client, ui: &async_channel::Sender<Message>, command: Command) -> Result<(), String> {
     let request = match command {
-        Command::Connect { id, bundle, options } => Request::Connect { id, bundle, options },
+        Command::Connect { id, bundle, options } => {
+            let request = Request::Connect {
+                id: id.clone(),
+                bundle,
+                options,
+            };
+            if let Err(e) = client.request(request).await {
+                let _ = ui.send(Message::ConnectFailed(id, e.to_string())).await;
+            }
+            return Ok(());
+        }
         Command::Disconnect(id) => Request::Disconnect { id },
         Command::DisconnectAll => Request::DisconnectAll,
         Command::Unblock(id) => Request::Unblock { id },

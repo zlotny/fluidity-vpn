@@ -28,6 +28,7 @@ final class ConnectionManager: ObservableObject {
     static let historyLength = 300
 
     private var userInitiatedDisconnect: Set<String> = []
+    private var failureAlerts: Set<String> = []
     private var wantedBeforeSleep: Set<String> = []
     private var wantedBeforeNetworkLoss: Set<String> = []
     private var previousStates: [String: SessionState] = [:]
@@ -245,8 +246,33 @@ final class ConnectionManager: ObservableObject {
         appendLocalLog(connection.id, "error", message)
         lastError = message
         notify(title: connection.name, body: message)
-        if !daemonAvailable {
+        if daemonAvailable {
+            showFailure(message, connection: connection)
+        } else {
             AppDelegate.shared?.offerHelperInstall()
+        }
+    }
+
+    private func showFailure(_ message: String, connection: ConnectionInfo) {
+        guard failureAlerts.insert(connection.id).inserted else { return }
+        DispatchQueue.main.async { self.presentFailure(message, connection: connection) }
+    }
+
+    private func presentFailure(_ message: String, connection: ConnectionInfo) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Cannot connect to \(connection.name)"
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Edit Connection")
+        alert.addButton(withTitle: "Show Log")
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        failureAlerts.remove(connection.id)
+        switch response {
+        case .alertSecondButtonReturn: WindowManager.shared.showEditor(id: connection.id)
+        case .alertThirdButtonReturn: WindowManager.shared.showDetails(connection.id)
+        default: break
         }
     }
 
@@ -321,6 +347,7 @@ final class ConnectionManager: ObservableObject {
                 runScript(connection.disconnectedScript, connection: connection, session: old)
             } else if state == .error, let error = info.lastError {
                 notify(title: connection.name, body: error)
+                showFailure(error, connection: connection)
             }
             userInitiatedDisconnect.remove(old.id)
         case .reconnecting where old.state == .connected:

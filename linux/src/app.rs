@@ -34,6 +34,7 @@ pub struct App {
     usernames: RefCell<HashMap<String, String>>,
     pending_challenge: RefCell<HashMap<String, String>>,
     user_disconnect: RefCell<HashSet<String>>,
+    failure_alerts: RefCell<HashSet<String>>,
     previous: RefCell<HashMap<String, SessionState>>,
     wanted_before_sleep: RefCell<HashSet<String>>,
     wanted_before_network: RefCell<HashSet<String>>,
@@ -69,6 +70,7 @@ impl App {
             usernames: RefCell::default(),
             pending_challenge: RefCell::default(),
             user_disconnect: RefCell::default(),
+            failure_alerts: RefCell::default(),
             previous: RefCell::default(),
             wanted_before_sleep: RefCell::default(),
             wanted_before_network: RefCell::default(),
@@ -300,6 +302,11 @@ impl App {
                 }
             }
             Message::Error(e) => self.error(&e),
+            Message::ConnectFailed(id, e) => {
+                if let Some(c) = self.connection(&id) {
+                    self.report(&c, &e);
+                }
+            }
             Message::Tray(action) => self.tray_action(action),
         }
     }
@@ -416,6 +423,7 @@ impl App {
                     && let Some(e) = &info.last_error
                 {
                     self.notify(&connection.name, e);
+                    self.show_failure(&connection, e);
                 }
                 self.user_disconnect.borrow_mut().remove(&old.id);
             }
@@ -596,9 +604,34 @@ impl App {
         });
     }
 
-    fn report(&self, connection: &ConnInfo, message: &str) {
+    fn report(self: &Rc<Self>, connection: &ConnInfo, message: &str) {
         self.append_local_log(&connection.id, "error", message);
-        self.error(message);
+        self.notify(&connection.name, message);
+        self.show_failure(connection, message);
+    }
+
+    fn show_failure(self: &Rc<Self>, connection: &ConnInfo, message: &str) {
+        if !self.failure_alerts.borrow_mut().insert(connection.id.clone()) {
+            return;
+        }
+        let dialog = adw::AlertDialog::new(Some(&format!("Cannot connect to “{}”", connection.name)), Some(message));
+        dialog.add_response("log", "Show Log");
+        dialog.add_response("edit", "Edit Connection");
+        dialog.add_response("ok", "OK");
+        dialog.set_default_response(Some("ok"));
+        dialog.set_close_response("ok");
+        let app = self.clone();
+        let id = connection.id.clone();
+        dialog.connect_response(None, move |_, response| {
+            app.failure_alerts.borrow_mut().remove(&id);
+            match response {
+                "edit" => crate::editor::open(&app, Some(id.clone())),
+                "log" => app.window().show_log(&id),
+                _ => {}
+            }
+        });
+        self.show();
+        dialog.present(Some(&self.parent()));
     }
 
     pub fn disconnect(self: &Rc<Self>, id: &str) {
