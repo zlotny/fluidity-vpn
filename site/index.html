@@ -9,138 +9,343 @@
   <meta property="og:description" content="A free and open source OpenVPN client for macOS, Windows and Linux.">
   <meta property="og:url" content="https://fluidity.ndrs.es/">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#eef1f6">
+  <meta name="theme-color" content="#04060d">
+  <script>document.documentElement.classList.add("js")</script>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/site.css">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
+  <canvas class="starfield" id="starfield" aria-hidden="true"></canvas>
+  <div class="nebula" aria-hidden="true"></div>
 
-  <header class="nav-edge page">
+  <header class="nav">
     <a class="wordmark" href="./" aria-label="Fluidity home">
-      <img src="icon.svg" alt="" width="28" height="28">
+      <img src="icon.svg" alt="" width="26" height="26">
       <span>Fluidity</span>
     </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#control">Details</a>
+      <a href="#teams">Teams</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/zlotny/fluidity-vpn">GitHub</a>
+    </nav>
     <a class="nav-cta" href="#download">Download</a>
   </header>
 
   <main id="main">
-    <section class="hero page">
-      <div class="hero-copy">
-        <h1>Connect to your VPN in one click.</h1>
-        <p class="lede">Fluidity is a free OpenVPN client for Mac, Windows and Linux. Open the file your workplace or VPN provider sent you, click its name, and you are on the network.</p>
-        <p class="lineage">A free and open source reimplementation of Viscosity.</p>
+    <section class="hero">
+      <div class="hero-copy reveal">
+        <p class="kicker">OpenVPN client for macOS, Windows and Linux</p>
+        <h1>Your VPN,<br><span class="grad">one click away.</span></h1>
+        <p class="lede">Fluidity is an OpenVPN client that lives in your menu bar. Open the file your workplace or provider sent you, click its name, and you are on the network.</p>
         <div class="hero-actions">
-          <a class="btn" id="primary-download" href="https://github.com/zlotny/fluidity-vpn/releases/latest">Download Fluidity</a>
-          <a class="text-link" href="#download">Other systems</a>
+          <a class="btn btn-primary" id="primary-download" href="https://github.com/zlotny/fluidity-vpn/releases/latest">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16" /></svg>
+            <span>Download Fluidity</span>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/zlotny/fluidity-vpn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4 1.3-4-2-6-2.5m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21" /></svg>
+            <span>View source</span>
+          </a>
         </div>
-        <p class="meta">Version 0.1 · Free, no account · macOS, Windows, Linux</p>
+        <p class="meta">Version 1.0 · No account · No subscription · 0BSD license</p>
+        <p class="lineage">A free and open source alternative to VPN clients like Viscosity.</p>
       </div>
 
-      <figure class="menu-figure">
-        <div class="menu" role="img" aria-label="The Fluidity menu with the Office connection connected and two other connections idle.">
-          <p class="menu-row is-live"><span class="dot"></span><span class="menu-name">Office</span><span class="menu-state">Connected</span></p>
-          <p class="menu-row"><span class="dot"></span><span class="menu-name">Home lab</span></p>
-          <p class="menu-row"><span class="dot"></span><span class="menu-name">Client site</span></p>
-          <hr>
-          <p class="menu-stat">Office · 10.8.0.6 · 2:14:07</p>
-          <p class="menu-stat">↓ 312 MB · ↑ 41 MB</p>
-          <hr>
-          <p class="menu-row is-action">Disconnect All</p>
-          <p class="menu-row is-action">Import Connection…</p>
-          <p class="menu-row is-action">Preferences</p>
+      <div class="orbit-stage" aria-hidden="true">
+        <svg class="orbits" viewBox="-300 -300 600 600">
+          <defs>
+            <radialGradient id="core-glow">
+              <stop offset="0" stop-color="#22d3ee" stop-opacity="0.45" />
+              <stop offset="0.5" stop-color="#3b82f6" stop-opacity="0.12" />
+              <stop offset="1" stop-color="#3b82f6" stop-opacity="0" />
+            </radialGradient>
+            <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#7dd3fc" stop-opacity="0.65" />
+              <stop offset="0.5" stop-color="#818cf8" stop-opacity="0.12" />
+              <stop offset="1" stop-color="#c084fc" stop-opacity="0.55" />
+            </linearGradient>
+          </defs>
+          <circle r="250" fill="url(#core-glow)" />
+          <g transform="rotate(-24)">
+            <ellipse class="ring" rx="250" ry="78" />
+            <circle class="sat sat-live" r="6">
+              <animateMotion dur="26s" repeatCount="indefinite" path="M250 0A250 78 0 1 1 -250 0A250 78 0 1 1 250 0" />
+            </circle>
+          </g>
+          <g transform="rotate(32)">
+            <ellipse class="ring" rx="200" ry="64" />
+            <circle class="sat" r="4.5">
+              <animateMotion dur="19s" begin="-6s" repeatCount="indefinite" path="M-200 0A200 64 0 1 1 200 0A200 64 0 1 1 -200 0" />
+            </circle>
+          </g>
+          <g transform="rotate(78)">
+            <ellipse class="ring ring-faint" rx="280" ry="46" />
+            <circle class="sat sat-violet" r="4">
+              <animateMotion dur="34s" begin="-12s" repeatCount="indefinite" path="M280 0A280 46 0 1 1 -280 0A280 46 0 1 1 280 0" />
+            </circle>
+          </g>
+        </svg>
+        <div class="core">
+          <img src="icon.svg" alt="" width="168" height="168">
         </div>
-        <figcaption>The menu while one connection is up. It lives in the menu bar on a Mac and in the system tray on Windows and Linux.</figcaption>
+        <p class="label label-a">Office<em>Connected · 10.8.0.6</em></p>
+        <p class="label label-b">Home lab<em>Idle</em></p>
+        <p class="label label-c">Client site<em>Idle</em></p>
+      </div>
+    </section>
+
+    <section class="formats reveal" aria-label="Supported files">
+      <p>Opens the files you already have</p>
+      <ul>
+        <li>.ovpn</li><li>.conf</li><li>.zip</li><li>.tar.gz</li><li>.tblk</li><li>.fvpnz</li>
+      </ul>
+    </section>
+
+    <section class="features" id="features">
+      <header class="section-head reveal">
+        <p class="kicker">Features</p>
+        <h2>Everything a VPN client should do.<br><span class="soft">Nothing it should not.</span></h2>
+      </header>
+
+      <div class="bento">
+        <article class="card card-menu reveal">
+          <div class="card-copy">
+            <h3>One click to connect</h3>
+            <p>Your connections in one short list in the menu bar or system tray. Click a name to connect. Run several at once.</p>
+          </div>
+          <img class="shot-menu" src="img/menu.png" width="388" height="366" alt="The Fluidity menu with Office connected, its address and live traffic, and the other connections." loading="lazy">
+        </article>
+
+        <article class="card card-shield reveal">
+          <div class="icon-tile tile-green"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.6 3 8.4 7 10 4-1.6 7-5.4 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg></div>
+          <h3>Kill switch</h3>
+          <p>Nothing leaves your computer outside the VPN, even when the tunnel drops. Printers and local devices stay reachable if you want.</p>
+        </article>
+
+        <article class="card card-wifi reveal">
+          <div class="icon-tile tile-cyan"><svg viewBox="0 0 24 24"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0" /><circle cx="12" cy="19.5" r="1" /></svg></div>
+          <h3>Café Wi‑Fi, handled</h3>
+          <p>Connects by itself on networks you have not trusted. Disconnects when you get home.</p>
+        </article>
+
+
+        <article class="card card-graph reveal">
+          <div class="card-copy">
+            <h3>See the traffic</h3>
+            <p>Live graphs, totals and 30 days of data usage for every connection.</p>
+            <p>This graph is from a real session.</p>
+          </div>
+          <img class="shot-graph" src="img/traffic-graph.png" width="550" height="472" alt="The live traffic graph of a connection." loading="lazy">
+        </article>
+
+        <article class="card card-auth reveal">
+          <div class="icon-tile tile-violet"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2.5" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /><circle cx="12" cy="15.5" r="1.5" /></svg></div>
+          <h3>Every kind of sign-in</h3>
+          <p>Passwords in your system keychain, one-time codes, web sign-in, certificates, smart cards and tokens.</p>
+        </article>
+
+        <article class="card card-dns reveal">
+          <div class="icon-tile tile-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg></div>
+          <h3>DNS, done right</h3>
+          <p>Full or split DNS. Your normal settings come back when a connection ends, even after a crash.</p>
+        </article>
+
+        <article class="card card-reconnect reveal">
+          <div class="icon-tile tile-amber"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.5-4.6M4 4v4h4M4 13a8 8 0 0 0 14.5 4.6M20 20v-4h-4" /></svg></div>
+          <h3>Back after sleep</h3>
+          <p>Reconnects when the network returns and when your computer wakes up.</p>
+        </article>
+
+        <article class="card card-obfs reveal">
+          <div class="icon-tile tile-magenta"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4" /></svg></div>
+          <h3>Gets through</h3>
+          <p>obfs4 obfuscation and HTTP or SOCKS proxies for networks that block VPN traffic.</p>
+        </article>
+
+        <article class="card card-term reveal">
+          <div class="card-copy">
+            <h3>Script everything</h3>
+            <p>A <code>fluidity</code> command, <code>fluidity://</code> links, scripts on connect and AppleScript on the Mac.</p>
+          </div>
+          <pre class="term" aria-label="Output of fluidity list"><span class="p">$</span> fluidity list
+Office                           <span class="g">Connected</span>
+Home lab                         Disconnected
+Client site                      Disconnected
+Customers/
+  Acme                           Disconnected
+  Globex                         Disconnected</pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="control" id="control">
+      <div class="control-copy reveal">
+        <p class="kicker">Details</p>
+        <h2>Mission control for every tunnel.</h2>
+        <p>The details window shows what is happening right now: addresses, the server, the interface, the traffic and the OpenVPN log. A connection check shows your public IP, where it is, and how far away the server is.</p>
+        <ul class="ticks">
+          <li>Status, traffic, usage and log tabs</li>
+          <li>Public IP, location and latency check</li>
+          <li>A full editor for every common OpenVPN option</li>
+          <li>Folders, drag and drop, and per-connection OpenVPN versions</li>
+        </ul>
+      </div>
+      <figure class="shots reveal">
+        <div class="shot-tabs" role="tablist" aria-label="Screenshots">
+          <button role="tab" aria-selected="true" data-shot="status">Status</button>
+          <button role="tab" aria-selected="false" data-shot="traffic">Traffic</button>
+          <button role="tab" aria-selected="false" data-shot="log">Log</button>
+          <button role="tab" aria-selected="false" data-shot="editor">Editor</button>
+          <button role="tab" aria-selected="false" data-shot="preferences">Preferences</button>
+        </div>
+        <div class="shot-stage">
+          <img class="is-on" data-shot="status" src="img/details-status.png" width="896" height="749" alt="The Fluidity details window showing the Office connection connected, with its address, server and traffic totals.">
+          <img data-shot="traffic" src="img/details-traffic.png" width="896" height="749" alt="The traffic tab with a live graph of incoming and outgoing traffic." loading="lazy">
+          <img data-shot="log" src="img/details-log.png" width="896" height="749" alt="The log tab with the OpenVPN log of the Office connection." loading="lazy">
+          <img data-shot="editor" src="img/editor.png" width="792" height="724" alt="The connection editor." loading="lazy">
+          <img data-shot="preferences" src="img/preferences.png" width="883" height="720" alt="The preferences window with the list of connections." loading="lazy">
+        </div>
+        <figcaption>Screenshots of Fluidity on macOS.</figcaption>
       </figure>
     </section>
 
-    <section class="faq page" aria-label="Questions and answers">
-      <article class="qa">
-        <h2>What is this, exactly?</h2>
-        <p>Many workplaces, universities and VPN services hand out an OpenVPN file, usually ending in <code>.ovpn</code>. Fluidity is the app that opens it.</p>
-        <p>It keeps your connections in one short list, so getting on the network is a click instead of a terminal command. It shows when you are connected, how much data has gone through, and the log when something goes wrong.</p>
-      </article>
-
-      <article class="qa">
-        <h2>Is Fluidity a VPN service?</h2>
-        <p>No. Fluidity is the client, the app on your computer. You still need a VPN server: the one at your office, your university, or a provider you pay. If they give you an OpenVPN file, Fluidity can use it.</p>
-      </article>
-
-      <article class="qa">
-        <h2>Will my file work?</h2>
-        <p>Almost certainly. Fluidity reads <code>.ovpn</code> and <code>.conf</code> files, and the zip or tar.gz bundles some providers send with their certificates and keys. Drag the file onto the window, or choose <span class="ui">Import Connection</span>.</p>
-        <p>If your provider asks for a one-time code or a sign-in page, Fluidity asks you too. Smart cards, tokens and certificate files work as well.</p>
-      </article>
-
-      <article class="qa">
-        <h2>What does it cost?</h2>
-        <p>Nothing. Fluidity is free and open source under the <a href="https://github.com/zlotny/fluidity-vpn/blob/main/LICENSE">0BSD license</a>. There is no account, no subscription and no advertising. Anyone can read the <a href="https://github.com/zlotny/fluidity-vpn">source code</a>, change it, or build it.</p>
-      </article>
-
-      <article class="qa">
-        <h2>Where does my password go?</h2>
-        <p>Only where you let it. Turn on <span class="ui">Save Password</span> and Fluidity keeps it in your computer's own password store: the Keychain on a Mac, Credential Manager on Windows, the Secret Service on Linux. Leave it off and Fluidity asks each time.</p>
-      </article>
-
-      <article class="qa">
-        <h2>What happens when the Wi‑Fi drops?</h2>
-        <p>Fluidity reconnects when the network comes back and after your computer wakes from sleep. It puts your normal DNS settings back when a connection ends, even after a crash, so a lost tunnel does not leave you without internet.</p>
-      </article>
-
-      <article class="qa">
-        <h2>Can it protect me on café Wi‑Fi?</h2>
-        <p>Yes. Pick a connection and Fluidity starts it when you join a Wi‑Fi network you have not marked as trusted, then stops it when you get home. Turn on the <span class="ui">kill switch</span> and nothing leaves your computer outside the VPN, even if the connection drops. You can still reach your printer and other local devices.</p>
-      </article>
-
-      <article class="qa">
-        <h2>I have more than one VPN.</h2>
-        <p>Add as many as you need, sort them into folders, and run several at once. Each one keeps its own saved password, settings and log. For the curious, there is a full editor for every common OpenVPN option, scripts that run when you connect, a <code>fluidity</code> command for the terminal, and <code>fluidity://</code> links that connect from a launcher or shortcut. Each connection also keeps 30 days of data usage.</p>
-      </article>
-
-      <article class="qa">
-        <h2>Our IT team wants to roll it out.</h2>
-        <p>Put a deployment folder next to the installer and every user gets the same connections, preferences and menu items on first launch. Managed preferences lock the settings you choose. Installers are a <code>.pkg</code> for macOS, an <code>.msi</code> for Windows, and <code>.deb</code> and <code>.rpm</code> packages for Linux. <a href="https://github.com/zlotny/fluidity-vpn#enterprise-deployment">Deployment guide</a>.</p>
-      </article>
+    <section class="everything" aria-labelledby="everything-title">
+      <header class="section-head reveal">
+        <p class="kicker">And more</p>
+        <h2 id="everything-title">For the curious.</h2>
+      </header>
+      <div class="lists reveal">
+        <div>
+          <h3>Connections</h3>
+          <ul>
+            <li>Folders and drag and drop</li>
+            <li>Simultaneous connections</li>
+            <li>Connect on launch</li>
+            <li>Disconnect when idle</li>
+            <li>Export as .fvpnz</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Networking</h3>
+          <ul>
+            <li>Full and split DNS</li>
+            <li>IPv6 leak blocking</li>
+            <li>System proxy while connected</li>
+            <li>HTTP and SOCKS proxies</li>
+            <li>obfs4 obfuscation</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Sign-in</h3>
+          <ul>
+            <li>Keychain, Credential Manager, Secret Service</li>
+            <li>Static and dynamic challenges</li>
+            <li>Web authentication</li>
+            <li>PKCS#12 and PKCS#11</li>
+            <li>macOS Keychain identities</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Automation</h3>
+          <ul>
+            <li>Before and after connect scripts</li>
+            <li>Custom menu items</li>
+            <li>Command-line tool</li>
+            <li><code>fluidity://</code> links</li>
+            <li>Global keyboard shortcut</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
-    <section class="download page" id="download" aria-labelledby="download-title">
-      <h2 id="download-title">Which file do I need?</h2>
-      <table class="spec">
-        <thead>
-          <tr><th scope="col">Your computer</th><th scope="col">Download</th><th scope="col">Good to know</th></tr>
-        </thead>
-        <tbody>
-          <tr data-os="mac">
-            <th scope="row">Mac, macOS 13 Ventura or later</th>
-            <td><a href="https://github.com/zlotny/fluidity-vpn/releases/latest">Fluidity .pkg</a></td>
-            <td>OpenVPN is included.</td>
-          </tr>
-          <tr data-os="windows">
-            <th scope="row">Windows 10 or 11, 64-bit</th>
-            <td><a href="https://github.com/zlotny/fluidity-vpn/releases/latest">Fluidity .msi</a></td>
-            <td>Install <a href="https://openvpn.net/community-downloads/">OpenVPN 2.6 or later</a> first.</td>
-          </tr>
-          <tr data-os="linux">
-            <th scope="row">Ubuntu 24.04, Debian 13</th>
-            <td><a href="https://github.com/zlotny/fluidity-vpn/releases/latest">Fluidity .deb</a></td>
-            <td>On GNOME, add the AppIndicator extension for the tray icon.</td>
-          </tr>
-          <tr data-os="linux">
-            <th scope="row">Fedora 42</th>
-            <td><a href="https://github.com/zlotny/fluidity-vpn/releases/latest">Fluidity .rpm</a></td>
-            <td>On GNOME, add the AppIndicator extension for the tray icon.</td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="after-table">Prefer to build it yourself? The <a href="https://github.com/zlotny/fluidity-vpn#build-from-source">build instructions</a> cover all three systems.</p>
+    <section class="teams" id="teams">
+      <div class="teams-card reveal">
+        <div class="teams-copy">
+          <p class="kicker">For IT teams</p>
+          <h2>Roll it out to everyone.</h2>
+          <p>Put a deployment folder next to the installer. Every user gets the same connections, preferences and menu items on first launch. Managed preferences lock the settings you choose.</p>
+          <a class="text-link" href="https://github.com/zlotny/fluidity-vpn#enterprise-deployment">Read the deployment guide →</a>
+        </div>
+        <ul class="pkgs">
+          <li><span class="pkg-ext">.pkg</span><span>macOS</span></li>
+          <li><span class="pkg-ext">.msi</span><span>Windows</span></li>
+          <li><span class="pkg-ext">.deb</span><span>Debian, Ubuntu</span></li>
+          <li><span class="pkg-ext">.rpm</span><span>Fedora</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="faq" id="faq" aria-labelledby="faq-title">
+      <header class="section-head reveal">
+        <p class="kicker">Questions</p>
+        <h2 id="faq-title">Good to know.</h2>
+      </header>
+      <div class="qa-list reveal">
+        <details>
+          <summary>Is Fluidity a VPN service?</summary>
+          <p>No. Fluidity is the client, the app on your computer. You still need a VPN server: the one at your office, your university, or a provider you pay. If they give you an OpenVPN file, Fluidity can use it.</p>
+        </details>
+        <details>
+          <summary>Will my file work?</summary>
+          <p>Almost certainly. Fluidity reads <code>.ovpn</code> and <code>.conf</code> files, and the zip or tar.gz bundles some providers send with their certificates and keys. Drag the file onto the window, or choose Import Connection.</p>
+        </details>
+        <details>
+          <summary>What does it cost?</summary>
+          <p>Nothing. Fluidity is free and open source under the <a href="https://github.com/zlotny/fluidity-vpn/blob/main/LICENSE">0BSD license</a>. There is no account, no subscription and no advertising.</p>
+        </details>
+        <details>
+          <summary>Where does my password go?</summary>
+          <p>Only where you let it. Turn on Save Password and Fluidity keeps it in your computer's own password store: the Keychain on a Mac, Credential Manager on Windows, the Secret Service on Linux. Leave it off and Fluidity asks each time.</p>
+        </details>
+        <details>
+          <summary>Does the app run as administrator?</summary>
+          <p>No. A small service does the work that needs admin rights, such as routes and DNS. The app itself runs as you.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="download" id="download" aria-labelledby="download-title">
+      <header class="section-head reveal">
+        <p class="kicker">Download</p>
+        <h2 id="download-title">Ready for launch.</h2>
+        <p class="sub">Pick your system. Everything is free.</p>
+      </header>
+      <div class="platforms reveal">
+        <a class="platform" data-os="mac" href="https://github.com/zlotny/fluidity-vpn/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7a4.6 4.6 0 0 0-3.6-2c-1.5-.2-3 .9-3.7.9-.8 0-2-.9-3.2-.9a4.8 4.8 0 0 0-4 2.5c-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8s2.1-1.2 2.9-2.4a10 10 0 0 0 1.3-2.7 4.2 4.2 0 0 1-2.3-3.9ZM14 5.5A4.3 4.3 0 0 0 15 2.4a4.4 4.4 0 0 0-2.9 1.5 4.1 4.1 0 0 0-1 3 3.7 3.7 0 0 0 2.9-1.4Z" /></svg>
+          <h3>macOS</h3>
+          <p>macOS 13 Ventura or later</p>
+          <span class="file">Fluidity.pkg</span>
+          <span class="note">OpenVPN included</span>
+        </a>
+        <a class="platform" data-os="windows" href="https://github.com/zlotny/fluidity-vpn/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.5v7H3v-6Zm0 7h7.5v7L3 18.5v-6Zm8.5-8.1L21 3v8.5h-9.5V4.4Zm0 8.1H21V21l-9.5-1.4v-7.1Z" /></svg>
+          <h3>Windows</h3>
+          <p>Windows 10 or 11, 64-bit</p>
+          <span class="file">Fluidity.msi</span>
+          <span class="note">Needs OpenVPN 2.6 or later</span>
+        </a>
+        <a class="platform" data-os="linux" href="https://github.com/zlotny/fluidity-vpn/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c-2 0-3.3 1.7-3.3 4.2 0 1.6.4 2.5-.6 4-1.2 1.7-3.4 4.4-3.4 7 0 .8.3 1.3.8 1.6-.4.6-.2 1.6 1 1.9 1.5.4 2.5-.6 3.7-.6h3.6c1.2 0 2.2 1 3.7.6 1.2-.3 1.4-1.3 1-1.9.5-.3.8-.8.8-1.6 0-2.6-2.2-5.3-3.4-7-1-1.5-.6-2.4-.6-4 0-2.5-1.3-4.2-3.3-4.2Z" /><circle cx="10.5" cy="6.8" r=".8" fill="currentColor" /><circle cx="13.5" cy="6.8" r=".8" fill="currentColor" /></svg>
+          <h3>Linux</h3>
+          <p>Ubuntu 24.04, Debian 13, Fedora 42</p>
+          <span class="file">.deb · .rpm</span>
+          <span class="note">GNOME needs the AppIndicator extension</span>
+        </a>
+      </div>
+      <p class="after reveal">Prefer to build it yourself? Read the <a href="https://github.com/zlotny/fluidity-vpn#build-from-source">build instructions</a>.</p>
     </section>
   </main>
 
-  <footer class="foot-mast page">
+  <div class="planet-clip" aria-hidden="true"><div class="planet"></div></div>
+  <footer class="foot">
     <p class="foot-word"><img src="icon.svg" alt="" width="22" height="22"> Fluidity</p>
     <p class="foot-tag">A free OpenVPN client for macOS, Windows and Linux.</p>
     <p class="foot-links">
@@ -151,5 +356,6 @@
   </footer>
 
   <script src="js/os.js" defer></script>
+  <script src="js/space.js" defer></script>
 </body>
 </html>

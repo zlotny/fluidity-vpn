@@ -1,77 +1,39 @@
-/* Hallmark · genre: editorial · macrostructure: Conversational FAQ · theme: Almanac · enrichment: none · nav: N9 · footer: Ft1
- * tone: editorial · audience: people with a VPN file from work or a provider · use: download · anchor hue: 250 (blue, from the app icon)
- * axes: light paper / grotesk-sans display + serif body / cool accent
- */
-
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --color-paper:      oklch(95%  0.008 245);
-  --color-paper-2:    oklch(91.5% 0.010 245);
-  --color-paper-3:    oklch(87%  0.012 240);
-  --color-rule:       oklch(78%  0.012 240);
-  --color-rule-2:     oklch(38%  0.018 240);
-  --color-muted:      oklch(45%  0.014 245);
-  --color-neutral:    oklch(30%  0.016 245);
-  --color-ink-2:      oklch(22%  0.018 245);
-  --color-ink:        oklch(17%  0.020 245);
-  --color-accent:     oklch(45%  0.150 252);
-  --color-accent-deep:oklch(37%  0.135 252);
-  --color-accent-ink: oklch(97%  0.008 245);
-  --color-focus:      oklch(45%  0.150 252);
-  --color-live:       oklch(55%  0.140 150);
-  --color-idle:       oklch(65%  0.010 245);
-  --color-mark:       oklch(86%  0.060 240);
+  --void: #04060d;
+  --deep: #070b18;
+  --navy: #0b1226;
+  --surface: rgba(18, 26, 52, 0.55);
+  --surface-strong: rgba(22, 32, 64, 0.82);
+  --line: rgba(148, 170, 230, 0.14);
+  --line-strong: rgba(148, 170, 230, 0.28);
 
-  --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-body:    "Newsreader", ui-serif, Georgia, serif;
-  --font-ui:      "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+  --text: #eaf0ff;
+  --text-soft: #b4c0de;
+  --text-mute: #7d8bb0;
 
-  --display-weight: 700;
+  --cyan: #22d3ee;
+  --blue: #3b82f6;
+  --azure: #1a73f2;
+  --violet: #8b5cf6;
+  --magenta: #d946ef;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
 
-  --text-xs:   0.75rem;
-  --text-sm:   0.875rem;
-  --text-base: 1.125rem;
-  --text-md:   1.25rem;
-  --text-lg:   1.5rem;
-  --text-xl:   1.875rem;
-  --text-2xl:  2.25rem;
-  --text-display:   clamp(2.5rem, 4.5vw + 1rem, 4.75rem);
-  --text-display-s: clamp(1.625rem, 1.6vw + 1rem, 2.25rem);
+  --glow-cyan: 0 0 40px rgba(34, 211, 238, 0.35);
+  --grad-brand: linear-gradient(120deg, #7dd3fc 0%, #22d3ee 35%, #818cf8 70%, #c084fc 100%);
+  --grad-button: linear-gradient(135deg, #22d3ee 0%, #3b82f6 55%, #6366f1 100%);
 
-  --lh-tight:   1.04;
-  --lh-snug:    1.2;
-  --lh-normal:  1.5;
-  --lh-relaxed: 1.65;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --tracking-display: -0.03em;
-  --tracking-tight:   -0.012em;
-  --tracking-label:   0.04em;
+  --radius-s: 10px;
+  --radius-m: 16px;
+  --radius-l: 24px;
+  --radius-xl: 32px;
 
-  --space-3xs: 0.125rem;
-  --space-2xs: 0.25rem;
-  --space-xs:  0.5rem;
-  --space-sm:  0.75rem;
-  --space-md:  1rem;
-  --space-lg:  1.5rem;
-  --space-xl:  2rem;
-  --space-2xl: 3rem;
-  --space-3xl: 4.5rem;
-  --space-4xl: 7rem;
-
-  --measure:     60ch;
-  --page-max:    72rem;
-  --page-gutter: clamp(1rem, 4vw, 3rem);
-
-  --rule-hair: 1px;
-  --rule-fine: 1px;
-  --radius-card: 0;
-  --radius-pill: 0;
-
-  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in:     cubic-bezier(0.7, 0, 0.84, 0);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-micro: 120ms;
-  --dur-short: 220ms;
+  --page: min(1180px, 100% - 32px);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
