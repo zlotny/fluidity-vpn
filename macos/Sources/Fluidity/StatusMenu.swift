@@ -54,6 +54,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     var iconImage: NSImage? { item.button?.image }
 
+    func open() { item.button?.performClick(nil) }
+
     var debugDescriptionText: String {
         rebuild()
         func dump(_ menu: NSMenu, _ indent: String) -> [String] {
